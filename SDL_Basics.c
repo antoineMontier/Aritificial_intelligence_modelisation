@@ -313,18 +313,12 @@ void text(SDL_Renderer*r, int x, int y, char*text, TTF_Font*font, int red, int g
     int text_height;
     SDL_Surface *surface;
     SDL_Texture *texture;
-    SDL_Color textColor = {red, green, blue, 1};
-    printf("%s\n", TTF_GetError());
-    surface = TTF_RenderUTF8_Blended(font, text, textColor);
-    if(surface == NULL){
-        fprintf(stderr, "error: render text failed %s\n", TTF_GetError());
-        return;
-    }
+    SDL_Color textColor = {red, green, blue, 0};
 
+    surface = TTF_RenderText_Blended(font, text, textColor);
     texture = SDL_CreateTextureFromSurface(r, surface);
     text_width = surface->w;
     text_height = surface->h;
-
     SDL_FreeSurface(surface);
     SDL_Rect rectangle;
     rectangle.x = x;
