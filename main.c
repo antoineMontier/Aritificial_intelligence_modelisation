@@ -3,17 +3,18 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-#define FRAMES_PER_SECOND 60
+#define FRAMES_PER_SECOND 1000
 #define TABLE_SIZE 1000
 #define NB_COLORS 3
+#define ADN_TRANSMISSION 0.8
 
 typedef struct
 {
+    double p_x;
+    double p_y;
     double x;
     double y;
     double size;
-    double vx;
-    double vy;
     double seed_x;
     double seed_y;
     SDL_Color color;
@@ -23,7 +24,9 @@ void display_box(SDL_Renderer *r);
 void draw_particle(SDL_Renderer *r, particle p);
 int move_particle(particle *p); // returns 0 if particle in the box and 1 if outside
 void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle p, char *tmp, const char *position);
-int initialise_particle(particle *p, SDL_Color*c);
+int initialise_particle(particle *p, SDL_Color *c);
+void inherit_particle(particle *source, particle *target, SDL_Color *c);
+void copy_particle(particle *source, particle *target);
 
 int main()
 { /*gcc -c -Wall -Wextra main.c && gcc main.o -lm -o main && ./main*/
@@ -44,8 +47,6 @@ int main()
     blue.b = 255;
     blue.a = 1;
 
-
-
     srand(time(0));
     SDL_Window *w;
     SDL_Renderer *r;
@@ -57,29 +58,62 @@ int main()
     TTF_Font *param_font;
 
     setFont(&param_font, "Roboto_Black.ttf", 20);
-    SDL_Color*colors = malloc(NB_COLORS*sizeof(SDL_Color));
-    colors[0] = red; colors[1] = green; colors[2] = blue;
+    SDL_Color *colors = malloc(NB_COLORS * sizeof(SDL_Color));
+    colors[0] = red;
+    colors[1] = green;
+    colors[2] = blue;
     char *tmp = malloc(10);
-    particle red_particle, green_particle;
-    initialise_particle(&red_particle, colors);
-    initialise_particle(&green_particle, colors);
-
+    particle first, second, third;
+    initialise_particle(&first, colors);
+    initialise_particle(&second, colors);
+    int iterations = 0;
+    int first_info, second_info;
+    int best_choice = 0;
     while (program_launched)
     {
 
-        if (move_particle(&red_particle) == 1)
-            printf("red ball exiting\n");
-        if (move_particle(&green_particle) == 1)
-            printf("green ball exiting\n");
-
+        first_info = move_particle(&first);
+        second_info = move_particle(&second);
+        // printf("%d %d\n", first_info, second_info);
+        if (first_info == 0)
+        {
+            printf("regeneration\n");
+            copy_particle(&first, &third);
+            inherit_particle(&third, &first, colors);
+            inherit_particle(&third, &second, colors);
+            best_choice = 1;
+            iterations = 0;
+        }
+        else if (second_info == 0)
+        {
+            printf("regeneration\n");
+            copy_particle(&second, &third);
+            inherit_particle(&third, &first, colors);
+            inherit_particle(&third, &second, colors);
+            best_choice = 1;
+            iterations = 0;
+        }
+        else if (first_info == 1 && second_info == 1 && iterations < 5000) // both particles are touching bounds
+        {
+            if (best_choice == 0)
+            {
+                initialise_particle(&first, colors);
+                initialise_particle(&second, colors);
+            }
+            else if (best_choice == 1)
+            {
+                inherit_particle(&third, &first, colors);
+                inherit_particle(&third, &second, colors);
+            }
+            iterations = 0;
+        }
         background(r, 255, 255, 255, WIDTH, HEIGHT);
-        draw_particle(r, red_particle);
-        draw_particle(r, green_particle);
-
+        draw_particle(r, first);
+        draw_particle(r, second);
+        // printf("%d\n", iterations);
         display_box(r);
-        display_particle_informations(r, param_font, red_particle, tmp, "up");
-        display_particle_informations(r, param_font, green_particle, tmp, "down");
-
+        display_particle_informations(r, param_font, first, tmp, "up");
+        display_particle_informations(r, param_font, second, tmp, "down");
 
         while (SDL_PollEvent(&evt))
         { // reads all the events (mouse moving, key pressed...)        //possible to wait for an event with SDL_WaitEvent
@@ -111,7 +145,7 @@ int main()
                 break;
             }
         }
-
+        iterations++;
         SDL_RenderPresent(r); // refresh the render
         SDL_Delay(1000 / FRAMES_PER_SECOND);
     }
@@ -142,57 +176,74 @@ void draw_particle(SDL_Renderer *r, particle p)
 
 int move_particle(particle *p)
 {
+
+    int touched = 0;
     //============================== bounce =============================
     if (p->y - p->size < HEIGHT * 0.1)
-        p->vy *= -1;
+    {
+        p->y = p->size + HEIGHT * 0.1;
+        touched = 1;
+    }
     else if (p->y + p->size > HEIGHT * 0.9)
-        p->vy *= -1;
+    {
+        p->y = HEIGHT * 0.9 - p->size;
+        touched = 1;
+    }
     if (p->x - p->size < WIDTH * 0.1)
-        p->vx *= -1;
+    {
+        p->x = WIDTH * 0.1 + p->size;
+        touched = 1;
+    }
     else if ((p->y - p->size < HEIGHT * 0.45 || p->y + p->size > HEIGHT * 0.55) && p->x + p->size > WIDTH * 0.9)
-        p->vx *= -1;
+    {
+        p->x = WIDTH * 0.9 - p->size;
+        touched = 1;
+    }
+    if (fabs(p->p_x - p->x) < 0.05 && fabs(p->p_y - p->y) < 0.05 && touched)
+        return 1;
+    p->p_x = p->x;
+    p->p_y = p->y;
     //==================================================================
 
-    p->x += p->vx ;
-    p->y += p->vy ;
-
-    p->vx += (rand() / (float)RAND_MAX - 0.5) + p->seed_x;
-    p->vy += (rand() / (float)RAND_MAX - 0.5) + p->seed_y;
+    p->x += (rand() / (float)RAND_MAX - 0.5) + p->seed_x;
+    p->y += (rand() / (float)RAND_MAX - 0.5) + p->seed_y;
 
     if (p->x + p->size > WIDTH * 0.1 - 5 && p->y + p->size > HEIGHT * 0.1 - 5 && p->x - p->size < WIDTH * 0.9 + 5 && p->y - p->size < HEIGHT * 0.9 + 5)
-        return 0;
-    else
-        return 1;
+    {
+        return 2;
+    }
+    return 0;
 }
 
 void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle p, char *tmp, const char *position)
 {
     if (strcmp(position, "up") == 0)
     {
-        text(r, WIDTH * 0, HEIGHT * 0, "vx", f, p.color.r, p.color.g, p.color.b);
-        text(r, WIDTH * 0.1, HEIGHT * 0, "vy", f, p.color.r, p.color.g, p.color.b);
+        text(r, WIDTH * 0, HEIGHT * 0, "x", f, p.color.r, p.color.g, p.color.b);
+        text(r, WIDTH * 0.1, HEIGHT * 0, "y", f, p.color.r, p.color.g, p.color.b);
         text(r, WIDTH * 0.2, HEIGHT * 0, "seed x", f, p.color.r, p.color.g, p.color.b);
         text(r, WIDTH * 0.3, HEIGHT * 0, "seed y", f, p.color.r, p.color.g, p.color.b);
 
-        gcvt(p.vx, 3, tmp);
+        gcvt(p.x, 3, tmp);
         text(r, WIDTH * 0, HEIGHT * 0.02, tmp, f, p.color.r, p.color.g, p.color.b);
-        gcvt(p.vy, 3, tmp);
+        gcvt(p.y, 3, tmp);
         text(r, WIDTH * 0.1, HEIGHT * 0.02, tmp, f, p.color.r, p.color.g, p.color.b);
         gcvt(p.seed_x, 4, tmp);
         text(r, WIDTH * 0.2, HEIGHT * 0.02, tmp, f, p.color.r, p.color.g, p.color.b);
         gcvt(p.seed_y, 4, tmp);
         text(r, WIDTH * 0.3, HEIGHT * 0.02, tmp, f, p.color.r, p.color.g, p.color.b);
-    }else if(strcmp(position, "down")==0){
+    }
+    else if (strcmp(position, "down") == 0)
+    {
 
-
-        text(r, WIDTH * 0, HEIGHT * 0.95, "vx", f, p.color.r, p.color.g, p.color.b);
-        text(r, WIDTH * 0.1, HEIGHT * 0.95, "vy", f, p.color.r, p.color.g, p.color.b);
+        text(r, WIDTH * 0, HEIGHT * 0.95, "x", f, p.color.r, p.color.g, p.color.b);
+        text(r, WIDTH * 0.1, HEIGHT * 0.95, "y", f, p.color.r, p.color.g, p.color.b);
         text(r, WIDTH * 0.2, HEIGHT * 0.95, "seed x", f, p.color.r, p.color.g, p.color.b);
         text(r, WIDTH * 0.3, HEIGHT * 0.95, "seed y", f, p.color.r, p.color.g, p.color.b);
 
-        gcvt(p.vx, 3, tmp);
+        gcvt(p.x, 3, tmp);
         text(r, WIDTH * 0, HEIGHT * 0.97, tmp, f, p.color.r, p.color.g, p.color.b);
-        gcvt(p.vy, 3, tmp);
+        gcvt(p.y, 3, tmp);
         text(r, WIDTH * 0.1, HEIGHT * 0.97, tmp, f, p.color.r, p.color.g, p.color.b);
         gcvt(p.seed_x, 4, tmp);
         text(r, WIDTH * 0.2, HEIGHT * 0.97, tmp, f, p.color.r, p.color.g, p.color.b);
@@ -201,13 +252,12 @@ void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle p, cha
     }
 }
 
-int initialise_particle(particle *p, SDL_Color*c){
-    p->vx = 0;
-    p->vy = 0;
-    p->seed_x = rand()/(float)RAND_MAX - 0.5;
-    p->seed_y = rand()/(float)RAND_MAX - 0.5;
-    p->x = WIDTH/2;
-    p->y = HEIGHT/2;
+int initialise_particle(particle *p, SDL_Color *c)
+{
+    p->seed_x = rand() / (float)RAND_MAX - 0.5;
+    p->seed_y = rand() / (float)RAND_MAX - 0.5;
+    p->x = WIDTH / 2;
+    p->y = HEIGHT / 2;
     p->size = 20;
     int col = rand() % NB_COLORS;
     p->color.r = c[col].r;
@@ -217,6 +267,29 @@ int initialise_particle(particle *p, SDL_Color*c){
     return 1;
 }
 
+void inherit_particle(particle *source, particle *target, SDL_Color *c)
+{
+    target->seed_x = (1 - (float)ADN_TRANSMISSION) * (rand() / (float)RAND_MAX - 0.5) + (float)ADN_TRANSMISSION * source->seed_x;
+    target->seed_y = (1 - (float)ADN_TRANSMISSION) * (rand() / (float)RAND_MAX - 0.5) + (float)ADN_TRANSMISSION * source->seed_y;
+    target->x = WIDTH / 2;
+    target->y = HEIGHT / 2;
+    target->size = 20;
+    int col = rand() % NB_COLORS;
+    target->color.r = c[col].r;
+    target->color.g = c[col].g;
+    target->color.b = c[col].b;
+    target->color.a = c[col].a;
+}
 
-
-
+void copy_particle(particle *source, particle *target)
+{
+    target->seed_x = source->seed_x;
+    target->seed_y = source->seed_y;
+    target->x = source->x;
+    target->y = source->y;
+    target->size = source->size;
+    target->color.r = source->color.r;
+    target->color.g = source->color.g;
+    target->color.b = source->color.b;
+    target->color.a = source->color.a;
+}
