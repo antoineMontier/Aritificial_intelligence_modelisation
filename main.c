@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 1000
-#define TABLE_SIZE 1000
+#define PARTICLES_NUMBER 100
 #define NB_COLORS 3
 #define ADN_TRANSMISSION 0.8
 
@@ -63,57 +63,34 @@ int main()
     colors[1] = green;
     colors[2] = blue;
     char *tmp = malloc(10);
-    particle first, second, third;
-    initialise_particle(&first, colors);
-    initialise_particle(&second, colors);
+    particle* part = malloc(PARTICLES_NUMBER*sizeof(particle));
+    particle temp;
+    for(int i=0; i< PARTICLES_NUMBER; i++)
+        initialise_particle(&part[i], colors);
+
     int iterations = 0;
-    int first_info, second_info;
-    int best_choice = 0;
+
     while (program_launched)
     {
 
-        first_info = move_particle(&first);
-        second_info = move_particle(&second);
-        // printf("%d %d\n", first_info, second_info);
-        if (first_info == 0)
-        {
-            printf("regeneration\n");
-            copy_particle(&first, &third);
-            inherit_particle(&third, &first, colors);
-            inherit_particle(&third, &second, colors);
-            best_choice = 1;
-            iterations = 0;
-        }
-        else if (second_info == 0)
-        {
-            printf("regeneration\n");
-            copy_particle(&second, &third);
-            inherit_particle(&third, &first, colors);
-            inherit_particle(&third, &second, colors);
-            best_choice = 1;
-            iterations = 0;
-        }
-        else if (first_info == 1 && second_info == 1 && iterations < 5000) // both particles are touching bounds
-        {
-            if (best_choice == 0)
-            {
-                initialise_particle(&first, colors);
-                initialise_particle(&second, colors);
+        for(int i = 0; i < PARTICLES_NUMBER ; i++){
+            if(move_particle(&part[i]) == 0){
+                printf("regeneration\n");
+                copy_particle(&part[i], &temp);
+                for(int j = 0; j < PARTICLES_NUMBER ; j++)
+                    inherit_particle(&temp, &part[j], colors);
+                iterations = 0;
+                i = PARTICLES_NUMBER;
             }
-            else if (best_choice == 1)
-            {
-                inherit_particle(&third, &first, colors);
-                inherit_particle(&third, &second, colors);
-            }
-            iterations = 0;
         }
+
+
         background(r, 255, 255, 255, WIDTH, HEIGHT);
-        draw_particle(r, first);
-        draw_particle(r, second);
+        for(int i = 0; i <  PARTICLES_NUMBER ; i++)
+            draw_particle(r, part[i]);
         // printf("%d\n", iterations);
         display_box(r);
-        display_particle_informations(r, param_font, first, tmp, "up");
-        display_particle_informations(r, param_font, second, tmp, "down");
+
 
         while (SDL_PollEvent(&evt))
         { // reads all the events (mouse moving, key pressed...)        //possible to wait for an event with SDL_WaitEvent
@@ -149,6 +126,7 @@ int main()
         SDL_RenderPresent(r); // refresh the render
         SDL_Delay(1000 / FRAMES_PER_SECOND);
     }
+    free(part);
     free(colors);
     free(tmp);
     TTF_CloseFont(param_font);
