@@ -6,7 +6,7 @@
 #define FRAMES_PER_SECOND 1000
 #define PARTICLES_NUMBER 100
 #define NB_COLORS 3
-#define ADN_TRANSMISSION 0.8
+#define ADN_TRANSMISSION 0.5
 
 typedef struct
 {
@@ -183,8 +183,8 @@ int move_particle(particle *p)
     p->p_y = p->y;
     //==================================================================
 
-    p->x += (rand() / (float)RAND_MAX - 0.5) + p->seed_x;
-    p->y += (rand() / (float)RAND_MAX - 0.5) + p->seed_y;
+    p->x += /*(rand() / (float)RAND_MAX - 0.5)*/ + p->seed_x;
+    p->y += /*(rand() / (float)RAND_MAX - 0.5)*/ + p->seed_y;
 
     if (p->x + p->size > WIDTH * 0.1 - 5 && p->y + p->size > HEIGHT * 0.1 - 5 && p->x - p->size < WIDTH * 0.9 + 5 && p->y - p->size < HEIGHT * 0.9 + 5)
     {
@@ -247,8 +247,8 @@ int initialise_particle(particle *p, SDL_Color *c)
 
 void inherit_particle(particle *source, particle *target, SDL_Color *c)
 {
-    target->seed_x = (1 - (float)ADN_TRANSMISSION) * (rand() / (float)RAND_MAX - 0.5) + (float)ADN_TRANSMISSION * source->seed_x;
-    target->seed_y = (1 - (float)ADN_TRANSMISSION) * (rand() / (float)RAND_MAX - 0.5) + (float)ADN_TRANSMISSION * source->seed_y;
+    target->seed_x = (1 - (float)ADN_TRANSMISSION) * (target->seed_x) + (float)ADN_TRANSMISSION * source->seed_x;
+    target->seed_y = (1 - (float)ADN_TRANSMISSION) * (target->seed_y) + (float)ADN_TRANSMISSION * source->seed_y;
     target->x = WIDTH / 2;
     target->y = HEIGHT / 2;
     target->size = 20;
