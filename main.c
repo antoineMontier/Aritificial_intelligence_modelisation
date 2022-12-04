@@ -4,11 +4,12 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 1000
-#define PARTICLES_NUMBER 300
+#define PARTICLES_NUMBER 500
 #define NB_COLORS 5
-#define ADN_TRANSMISSION 0.1
-#define COMMAND_NUMBER 1000 // 5 commands : 0 nothing 1 up 2 down 3 left 4 right
-#define PARTICLE_SPEED 5
+#define ADN_TRANSMISSION 0.5
+#define AUTO_TRANSMISSION 0.1
+#define COMMAND_NUMBER 5000 // 5 commands : 0 nothing 1 up 2 down 3 left 4 right
+#define PARTICLE_SPEED 15
 
 typedef struct
 {
@@ -34,6 +35,8 @@ void copy_particle(particle *source, particle *target);
 void close_Particle(particle **p);
 void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove);
 void load_positions(particle *src, SDL_Point*target, int moves);
+void print_best_in_file(particle p, const char *filename);
+void set_seed(particle*p, const char* filename);
 
 int main()
 { /*gcc -c -Wall -Wextra main.c && gcc main.o -lm -o main && ./main*/
@@ -88,10 +91,13 @@ int main()
     particle temp, best;
     initialise_particle(&temp, colors);
     initialise_particle(&best, colors);
+    //set_seed(&best, "bestMoves.txt");
+
     for (int i = 0; i < PARTICLES_NUMBER; i++)
         initialise_particle(&part[i], colors);
-
-    int iterations = 0, round = 0, bestMove = 999999;
+    //for (int j = 0; j < PARTICLES_NUMBER; j++)
+    //    inherit_particle(&best, &part[j]);
+    int iterations = 0, round = 0, bestMove = 99999;
 
     while (program_launched)
     {
@@ -144,6 +150,7 @@ int main()
                     break;
 
                 case SDLK_l:
+                    print_best_in_file(best, "bestMoves.txt");
                     break;
 
                 default:
@@ -181,11 +188,13 @@ void display_box(SDL_Renderer *r)
     line(r, WIDTH * 0.9, HEIGHT * 0.9, WIDTH * 0.9, HEIGHT * 0.55);
     line(r, WIDTH * 0.9, HEIGHT * 0.1, WIDTH * 0.9, HEIGHT * 0.45);
     circle(r, WIDTH * 0.7, HEIGHT * 0.55, HEIGHT * 0.05, 0);
+    circle(r, WIDTH * 0.7, HEIGHT * 0.45, HEIGHT*0.05, 0);
+    circle(r, WIDTH * 0.6, HEIGHT * 0.40, HEIGHT * 0.05, 0);
+    circle(r, WIDTH * 0.6, HEIGHT * 0.60, HEIGHT*0.05, 0);
 }
 
 void draw_particle(SDL_Renderer *r, particle p)
 {
-
     color(r, p.color.r, p.color.g, p.color.b, p.color.a);
     circle(r, p.x, p.y, p.size, 1);
 }
@@ -198,20 +207,32 @@ int move_particle(particle *p)
     //==================================================================
     switch (p->seed[p->round % 1000])
     {
-    case 1:
-        p->y -= PARTICLE_SPEED;
+    case 0:
+        if(p->y - PARTICLE_SPEED != p->p_y)
+            p->y -= PARTICLE_SPEED;
+        else
+            p->y += PARTICLE_SPEED;
         // printf("up\n");
         break;
-    case 2:
-        p->y += PARTICLE_SPEED;
+    case 1:
+        if(p->y + PARTICLE_SPEED!= p->p_y)
+            p->y += PARTICLE_SPEED;
+        else
+            p->y -= PARTICLE_SPEED;
         // printf("down\n");
         break;
-    case 3:
-        p->x -= PARTICLE_SPEED;
+    case 2:
+        if(p->x - PARTICLE_SPEED!= p->p_x)
+            p->x -= PARTICLE_SPEED;
+        else
+            p->x += PARTICLE_SPEED;
         // printf("left\n");
         break;
-    case 4:
-        p->x += PARTICLE_SPEED;
+    case 3:
+        if(p->x + PARTICLE_SPEED != p->p_x)
+            p->x += PARTICLE_SPEED;
+        else
+            p->x -= PARTICLE_SPEED;
         // printf("right\n");
         break;
     default:
@@ -222,7 +243,11 @@ int move_particle(particle *p)
         p->y = p->p_y;
     if (p->x - p->size < WIDTH * 0.1 || ((p->y - p->size < HEIGHT * 0.45 || p->y + p->size > HEIGHT * 0.55) && p->x + p->size > WIDTH * 0.9))
         p->x = p->p_x;
-    if (dist(WIDTH * 0.7, HEIGHT * 0.55, p->x, p->y) < HEIGHT * 0.05 + p->size)
+
+    if (dist(WIDTH * 0.7, HEIGHT * 0.55, p->x, p->y) < HEIGHT * 0.05 + p->size || 
+        dist(WIDTH * 0.7, HEIGHT * 0.45, p->x, p->y) < HEIGHT * 0.05 + p->size ||
+        dist(WIDTH * 0.6, HEIGHT * 0.40, p->x, p->y) < HEIGHT * 0.05 + p->size ||
+        dist(WIDTH * 0.6, HEIGHT * 0.60, p->x, p->y) < HEIGHT * 0.05 + p->size)
     {
         p->y = p->p_y;
         p->x = p->p_x;
@@ -255,9 +280,18 @@ void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle *p, ch
 
 int initialise_particle(particle *p, SDL_Color *c)
 {
-    p->seed = malloc(COMMAND_NUMBER * sizeof(int));
-    for (int i = 0; i < COMMAND_NUMBER; i++)
-        p->seed[i] = rand() % 5;
+    p->seed = malloc(COMMAND_NUMBER * sizeof(int));// 5 commands : 0 up 1 down 2 left 3 right
+    p->seed[0] = rand() % 4;
+    for (int i = 1; i < COMMAND_NUMBER; i++){
+        do{
+            p->seed[i] = rand() % 4;
+        }while((p->seed[i -1] == 0 && p->seed[i] == 1) ||
+                (p->seed[i] == 0 && p->seed[i-1] == 1) ||
+                (p->seed[i -1] == 2 && p->seed[i] == 3) ||
+                (p->seed[i -1] == 3 && p->seed[i] == 2));//don't do opposite moves
+        
+    }
+
     p->x = WIDTH * 0.5;
     p->y = HEIGHT * 0.5;
     p->size = 20;
@@ -272,11 +306,16 @@ int initialise_particle(particle *p, SDL_Color *c)
 
 void inherit_particle(particle *source, particle *target)
 {
-    for (int i = 0; i < COMMAND_NUMBER; i++)
-        if (rand() / (float)RAND_MAX < ADN_TRANSMISSION) // transmission
+    double ran;
+    for (int i = 0; i < COMMAND_NUMBER; i++){
+        ran = rand() / (float)RAND_MAX;
+        if ( ran < ADN_TRANSMISSION) // transmission
             target->seed[i] = source->seed[i];
-        else                                   // keep the command
+        else if (ran < ADN_TRANSMISSION + AUTO_TRANSMISSION)                                 // keep the command
             target->seed[i] = target->seed[i]; //=nothing
+        else
+            target->seed[i] = rand() % 4;
+    }
     target->round = 0;
     target->x = WIDTH / 2;
     target->y = HEIGHT / 2;
@@ -331,7 +370,6 @@ void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove)
 }
 
 void load_positions(particle *src, SDL_Point*target, int moves){
-    printf("%d\n", moves);
     src->x = src->p_x = WIDTH/2;
     src->y = src->p_y = HEIGHT/2;
     for (int i = 0; i < moves; i++){
@@ -341,3 +379,33 @@ void load_positions(particle *src, SDL_Point*target, int moves){
     }
 }
 
+void print_best_in_file(particle p, const char *filename){
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL)
+    {
+        printf("Couldn't open file %s\n", filename);
+        return;
+    }else{
+        for(int i = 0; i < COMMAND_NUMBER; i++)
+            fprintf(fp, "%d", p.seed[i]);
+        fprintf(fp,"\n");
+        fclose(fp);
+    }
+}
+
+void set_seed(particle*p, const char* filename){
+    char buffer[1];
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL)
+    {
+        printf("Couldn't open file %s\n", filename);
+        return;
+    }else{
+        for(int i = 0; i < COMMAND_NUMBER; i++){
+            buffer[0] = fgetc(fp);
+            sscanf(buffer, "%d", &p->seed[i]);
+            printf("%d\n", p->seed[i]);
+        }
+        fclose(fp);
+    }
+}
