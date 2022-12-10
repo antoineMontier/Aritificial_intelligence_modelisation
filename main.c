@@ -4,16 +4,17 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 24
-#define PARTICLES_NUMBER 200
+#define PARTICLES_NUMBER 100
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 2
 #define DAY_LENGTH 4
-#define TRANSITION_TIME 5
-#define HOUSE_SIZE 200
+#define TRANSITION_TIME 2
+#define HOUSE_SIZE 100
 #define HOUSE_X (WIDTH / 2 - HOUSE_SIZE/2)
 #define HOUSE_Y (HEIGHT/ 2 - HOUSE_SIZE/2)
+#define DIED_TIME 50
 
 typedef struct
 {
@@ -32,7 +33,7 @@ typedef struct
 void display_box(SDL_Renderer *r);
 void draw_particle(SDL_Renderer *r, particle p);
 int move_particle(particle *p, double animation, int home); // returns 0 if particle in the box and 1 if outside
-void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition);
+void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps);
 int initialise_particle(particle *p, SDL_Color *c);
 void inherit_particle(particle *source, particle *target);
 void copy_particle(particle *source, particle *target);
@@ -77,27 +78,27 @@ int main()
     for (int i = 0; i < PARTICLES_NUMBER; i++)
         initialise_particle(&part[i], colors);
 
-    int iterations = 0, start_time = 0, day_plus_night = DAY_LENGTH * 2 + TRANSITION_TIME * 2, go_home = 0;
+    int iterations = 0, start_time = 0, go_home = 0;
     start_time = time(0);
     while (program_launched)
     {
         // day & nigth management
-        if (DAY_LENGTH >= (time(0) - start_time) % day_plus_night)
+        if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH)
         { // day
             transition = 1.0;
             go_home = 0;
         }
-        else if ((time(0) - start_time) % day_plus_night <= DAY_LENGTH + TRANSITION_TIME)
+        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH + TRANSITION_TIME)
         { // switch to night
             transition -= 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 1;
         }
-        else if ((time(0) - start_time) % day_plus_night <= DAY_LENGTH * 2 + TRANSITION_TIME)
+        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH * 2 + TRANSITION_TIME)
         { // night
             transition = 0.0;
             go_home = 1;
         }
-        else if ((time(0) - start_time) % day_plus_night <= DAY_LENGTH * 2 + TRANSITION_TIME * 2)
+        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH * 2 + TRANSITION_TIME * 2)
         { // switch to day
             transition += 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 0;
@@ -108,7 +109,7 @@ int main()
             move_particle(&part[i], transition, go_home);
 
         background(r, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25, WIDTH, HEIGHT);
-        display_informations(r, param_font, part, tmp, start_time, transition);
+        display_informations(r, param_font, part, tmp, start_time, transition, real_fps);
         display_box(r);
         for (int i = 0; i < PARTICLES_NUMBER; i++)
             draw_particle(r, part[i]);
@@ -184,17 +185,22 @@ void display_box(SDL_Renderer *r)
 
 void draw_particle(SDL_Renderer *r, particle p)
 {
+    if(p.alive < -DIED_TIME)
+        return;
     color(r, p.color.r, p.color.g, p.color.b, p.color.a);
-    if (!p.alive)
+    if (p.alive <= 0)
         color(r, 0, 0, 0, 1);
     circle(r, p.x, p.y, p.size, 1);
 }
 
 int move_particle(particle *p, double animation, int home)
 {
-    if (!p->alive)
+    if(p->alive < -DIED_TIME)
         return 0;
-    SDL_Color black = {0, 0, 0, 0};
+    else if (p->alive <= 0){
+        p->alive -= 1;
+    }
+
     if (p->time_to_go <= 0 || p->destination_distance <= 2)
     {
         p->angle = rand() * 2 * 3.1415 / RAND_MAX;
@@ -205,7 +211,7 @@ int move_particle(particle *p, double animation, int home)
     {
         setDestination(p, HOUSE_X + HOUSE_SIZE / 2.0, HOUSE_Y + HOUSE_SIZE / 2.0);
         p->time_to_go = 5;
-        if (animation == 0.0 && (p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE))
+        if (animation == 0.0 && p->alive == 1 && (p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE))
         {
             p->alive = 0;
             return 0;
@@ -229,29 +235,67 @@ int move_particle(particle *p, double animation, int home)
     return 0;
 }
 
-void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition)
+void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps)
 {
     //day and night bar :
-        //2 grey parts
+        text(r, WIDTH*0.004, HEIGHT*0.002, "time", f, 255, 128, 0);
+
+        //ending grey part
         color(r, 128, 128, 128, 1);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.9*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.9*(DAY_LENGTH*2 + TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.9*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH*2 + TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
         
         //1 black part
         color(r, 50, 50, 50, 1);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.9*(DAY_LENGTH+TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) - 5, HEIGHT*0.01, WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH+TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) - 5, HEIGHT*0.01, WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 0, 0, 0, 0);
         //1 white part (useless)
         color(r, 200, 200, 200, 1);
-        roundRect(r, WIDTH*0.05 , HEIGHT*0.01, WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 5, 5, 5);
-        
+        roundRect(r, WIDTH*0.05 , HEIGHT*0.01, WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 0, 5, 0);
+
+        //middle grey part
+        color(r, 128, 128, 128, 1);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 0, 0, 0, 0);
+
 
         //progression bar
         color(r, 255, 128, 0, 1);
-        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.9*((time(0) - timer) % (DAY_LENGTH * 2 + TRANSITION_TIME * 2))/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.24*((time(0) - timer) % (DAY_LENGTH * 2 + TRANSITION_TIME * 2))/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
         
         //border
         color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
-        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.9, 10, 0, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.24, 10, 0, 5, 5, 5, 5);
+
+    //alive bar
+        text(r, WIDTH*0.004, HEIGHT*0.04, "alive", f, 0, 255, 48);
+        //first let's count the number of alive particle
+        int alive = 0;
+        for (int i = 0; i < PARTICLES_NUMBER ; i++)
+            if(p[i].alive == 1)
+                alive++;
+        gcvt(alive, 4, tmp);
+        text(r, WIDTH*0.26, HEIGHT*0.042, tmp, f, 0, 255, 48);
+        //filling bar
+        color(r, 0, 255, 48, 1);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.047, WIDTH*0.2*(alive/(float)PARTICLES_NUMBER), 10, 1, 5, 5, 5, 5);
+        //border
+        color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.047, WIDTH*0.2, 10, 0, 5, 5, 5, 5);
+    //FPS
+        text(r, WIDTH*0.337, HEIGHT*0.075, "FPS", f, 255, 0, 0);
+        gcvt(fps, 3, tmp);
+        text(r, WIDTH*0.337, HEIGHT*0.045, tmp, f, 255, 0, 0);//actual
+        gcvt(FRAMES_PER_SECOND*2, 3, tmp);
+        text(r, WIDTH*0.355, 0, tmp, f, 255, 0, 0);//max
+        text(r, WIDTH*0.285, HEIGHT*0.074, "0", f, 255, 0, 0);//0
+
+
+        //filling bar
+        color(r, 255, 0, 0, 1);
+        roundRect(r, WIDTH*0.32,HEIGHT*0.094 - HEIGHT*0.09*fps/(2*FRAMES_PER_SECOND), 10, HEIGHT*0.09*fps/(2*FRAMES_PER_SECOND) , 1, 5, 5, 5, 5);
+        //border
+        color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
+        roundRect(r, WIDTH*0.32, HEIGHT*0.0035, 10, HEIGHT*0.09, 0, 5, 5, 5, 5);
+        line(r, WIDTH*0.32, HEIGHT*0.009,WIDTH*0.35, HEIGHT*0.009);
+        line(r, WIDTH*0.32+10, HEIGHT*0.087, WIDTH*0.3, HEIGHT*0.087);
 
 
 }
