@@ -4,11 +4,13 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 24
-#define PARTICLES_NUMBER 100
+#define PARTICLES_NUMBER 200
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 15
+#define DAY_LENGTH 5
+#define TRANSITION_TIME 2
 
 typedef struct
 {
@@ -87,22 +89,32 @@ int main()
     colors[3] = yellow;
     colors[4] = purple;
     colors[5] = cyan;
-    char *tmp = malloc(10);
-    double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a =0, dt=0;
+    char *tmp = malloc(10);                                                                                     //transition : 1 is day, 0 is night
+    double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a =0, dt=0, transition = 1.0;
 
     particle *part = malloc(PARTICLES_NUMBER * sizeof(particle));
     for (int i = 0; i < PARTICLES_NUMBER; i++)
         initialise_particle(&part[i], colors);
 
-    int iterations = 0;
-
+    int iterations = 0, start_time=0, increase = 0, day_plus_night = DAY_LENGTH*2 + TRANSITION_TIME*2;//-1 if decrease, 0 if stable, 1 if increase
+    start_time = time(0);
     while (program_launched)
     {
+        //day & nigth management
+        if(DAY_LENGTH <= (time(0) - start_time) % day_plus_night && (time(0) - start_time) % day_plus_night < DAY_LENGTH + TRANSITION_TIME){//switch to night
+            transition -= 1/(float)(TRANSITION_TIME*FRAMES_PER_SECOND);
+            printf(">>night %lf\t", transition);
+        }else if(DAY_LENGTH*2 + TRANSITION_TIME <= (time(0) - start_time) % day_plus_night && (time(0) - start_time) % day_plus_night < DAY_LENGTH*2 + TRANSITION_TIME*2){//switch to day
+            transition += 1/(float)(TRANSITION_TIME*FRAMES_PER_SECOND);
+            printf(">>day %lf\t", transition);
+        }
+
+
         oldtime = SDL_GetTicks();
         for (int i = 0; i < PARTICLES_NUMBER; i++)
             move_particle(&part[i]);
 
-        background(r, 255, 255, 255, WIDTH, HEIGHT);
+        background(r, transition*200 + 25, transition*200 + 25, transition*200 + 25, WIDTH, HEIGHT);
         for (int i = 0; i < PARTICLES_NUMBER; i++)
             draw_particle(r, part[i]);
 
@@ -143,9 +155,12 @@ int main()
         dt = newtime - a;
         calcul_time = (newtime - oldtime);
         real_fps = 1000/dt;
-        printf("fps = %3.1lf\titerations = %d\tdelta-time = %lf\n", real_fps, iterations, calcul_time);
         iterations++;
-        SDL_Delay(1000 /FRAMES_PER_SECOND - calcul_time); //);
+        if(1000/FRAMES_PER_SECOND > calcul_time){
+            printf("fps = %.1lf\titerations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0)-start_time);
+            SDL_Delay(1000 /FRAMES_PER_SECOND - calcul_time); //);
+        }else
+            printf("max calculation power reached ! fps = %.1lf\titerations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0)-start_time);
         SDL_RenderPresent(r); // refresh the render
     }
     free(part);
@@ -159,11 +174,16 @@ int main()
 
 void display_box(SDL_Renderer *r)
 {
-    color(r, 0, 0, 0, 1);
+    color(r, 255, 128, 128, 1);
     line(r, WIDTH / 10, HEIGHT / 10, WIDTH / 10, HEIGHT * 0.9);
+    line(r, WIDTH / 10-1, HEIGHT / 10-1, WIDTH / 10-1, HEIGHT * 0.9+1);
     line(r, WIDTH / 10, HEIGHT / 10, WIDTH * 0.9, HEIGHT / 10);
+    line(r, WIDTH / 10-1, HEIGHT / 10-1, WIDTH * 0.9+1, HEIGHT / 10-1);
     line(r, WIDTH / 10, HEIGHT * 0.9, WIDTH * 0.9, HEIGHT * 0.9);
+    line(r, WIDTH / 10-1, HEIGHT * 0.9+1, WIDTH * 0.9+1, HEIGHT * 0.9+1);
     line(r, WIDTH * 0.9, HEIGHT * 0.9, WIDTH * 0.9, HEIGHT * 0.1);
+    line(r, WIDTH * 0.9+1, HEIGHT * 0.9+1, WIDTH * 0.9+1, HEIGHT * 0.1-1);
+
 }
 
 void draw_particle(SDL_Renderer *r, particle p)
@@ -235,7 +255,6 @@ void inherit_particle(particle *source, particle *target)
 
 void copy_particle(particle *source, particle *target)
 {
-
     target->x = source->x;
     target->y = source->y;
     target->size = source->size;
@@ -244,4 +263,8 @@ void copy_particle(particle *source, particle *target)
     target->color.b = source->color.b;
     target->color.a = source->color.a;
     target->round = source->round;
+    target->speed = source->speed;
+    target->destination_distance = source->destination_distance;
+    target->time_to_go = source->time_to_go;
+    target->angle = source->angle;
 }
