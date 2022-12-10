@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-#define FRAMES_PER_SECOND 60
-#define PARTICLES_NUMBER 500
-#define NB_COLORS 5
+#define FRAMES_PER_SECOND 24
+#define PARTICLES_NUMBER 100
+#define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 15
@@ -13,8 +13,10 @@
 typedef struct
 {
     int round;
-    double p_x;
-    double p_y;
+    double angle; //destination angle in rad
+    double destination_distance; //destination distance
+    int time_to_go; //max amout of time to reach destination
+    double speed; //speed
     double x;
     double y;
     double size;
@@ -33,6 +35,7 @@ void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove);
 
 int main()
 { /*gcc -c -Wall -Wextra main.c && gcc main.o -lm -o main && ./main*/
+    srand(time(0));
 
     SDL_Color red;
     red.r = 255;
@@ -59,6 +62,11 @@ int main()
     purple.g = 0;
     purple.b = 255;
     purple.a = 1;
+    SDL_Color cyan;
+    cyan.r = 0;
+    cyan.g = 150;
+    cyan.b = 200;
+    cyan.a = 1;
 
     srand(time(0));
     SDL_Window *w;
@@ -78,18 +86,25 @@ int main()
     colors[2] = blue;
     colors[3] = yellow;
     colors[4] = purple;
+    colors[5] = cyan;
     char *tmp = malloc(10);
     double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), dt = 0.0, real_fps = 0.0;
 
     particle *part = malloc(PARTICLES_NUMBER * sizeof(particle));
+    for (int i = 0; i < PARTICLES_NUMBER; i++)
+        initialise_particle(&part[i], colors);
 
     int iterations = 0;
 
     while (program_launched)
     {
+
+        for (int i = 0; i < PARTICLES_NUMBER; i++)
+            move_particle(&part[i]);
+
         background(r, 255, 255, 255, WIDTH, HEIGHT);
-        // for (int i = 0; i < PARTICLES_NUMBER; i++)
-        //     draw_particle(r, part[i]);
+        for (int i = 0; i < PARTICLES_NUMBER; i++)
+            draw_particle(r, part[i]);
 
         display_box(r);
 
@@ -158,6 +173,24 @@ void draw_particle(SDL_Renderer *r, particle p)
 
 int move_particle(particle *p)
 {
+    if(p->time_to_go <= 0 || p->destination_distance <= 2){
+        p->angle = rand()*2*3.1415/RAND_MAX;
+        p->destination_distance = rand() % (int)fmin(HEIGHT, WIDTH);
+        p->time_to_go = rand() % 60;
+    }
+    p->x += p->speed*cos(p->angle);
+    p->y += p->speed*sin(p->angle);
+    p->destination_distance -= p->speed;
+
+    if(p->x + p->size > WIDTH*0.9 || p->x - p->size< WIDTH*0.1)
+        p->angle = p->angle - 3.1415;
+    if(p->y + p->size > HEIGHT*0.9 || p->y- p->size < HEIGHT*0.1)
+        p->angle = p->angle - 3.1415;
+        
+    p->time_to_go -= 1;
+
+
+
 
     return 0;
 }
@@ -179,6 +212,10 @@ void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle *p, ch
 
 int initialise_particle(particle *p, SDL_Color *c)
 {
+    p->speed = 2;
+    p->angle = rand()*2*3.1415/RAND_MAX;
+    p->destination_distance = rand()*fmin(fabs(p->y -HEIGHT), fabs(p->x -WIDTH))/RAND_MAX;
+    p->time_to_go = rand() % 60;
     p->x = WIDTH * 0.5;
     p->y = HEIGHT * 0.5;
     p->size = 20;
@@ -199,9 +236,7 @@ void copy_particle(particle *source, particle *target)
 {
 
     target->x = source->x;
-    target->p_x = source->p_x;
     target->y = source->y;
-    target->p_y = source->p_y;
     target->size = source->size;
     target->color.r = source->color.r;
     target->color.g = source->color.g;
