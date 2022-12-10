@@ -32,7 +32,7 @@ typedef struct
 void display_box(SDL_Renderer *r);
 void draw_particle(SDL_Renderer *r, particle p);
 int move_particle(particle *p, double animation, int home); // returns 0 if particle in the box and 1 if outside
-void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int round, int bestmove);
+void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition);
 int initialise_particle(particle *p, SDL_Color *c);
 void inherit_particle(particle *source, particle *target);
 void copy_particle(particle *source, particle *target);
@@ -108,6 +108,7 @@ int main()
             move_particle(&part[i], transition, go_home);
 
         background(r, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25, WIDTH, HEIGHT);
+        display_informations(r, param_font, part, tmp, start_time, transition);
         display_box(r);
         for (int i = 0; i < PARTICLES_NUMBER; i++)
             draw_particle(r, part[i]);
@@ -228,18 +229,31 @@ int move_particle(particle *p, double animation, int home)
     return 0;
 }
 
-void display_particle_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int round, int bestmove)
+void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition)
 {
+    //day and night bar :
+        //2 grey parts
+        color(r, 128, 128, 128, 1);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.9*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.9*(DAY_LENGTH*2 + TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.9*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        
+        //1 black part
+        color(r, 50, 50, 50, 1);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.9*(DAY_LENGTH+TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) - 5, HEIGHT*0.01, WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 5, 5, 5);
+        //1 white part (useless)
+        color(r, 200, 200, 200, 1);
+        roundRect(r, WIDTH*0.05 , HEIGHT*0.01, WIDTH*0.9*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 5, 5, 5);
+        
 
-    text(r, WIDTH * 0, HEIGHT * 0, "moves", f, 0, 0, 0);
-    text(r, WIDTH * 0.1, HEIGHT * 0, "round", f, 0, 0, 0);
-    text(r, WIDTH * 0.2, HEIGHT * 0, "best move", f, 0, 0, 0);
-    gcvt(p[0].round, 4, tmp);
-    text(r, WIDTH * 0, HEIGHT * 0.02, tmp, f, 0, 0, 0);
-    gcvt(round, 4, tmp);
-    text(r, WIDTH * 0.1, HEIGHT * 0.02, tmp, f, 0, 0, 0);
-    gcvt(bestmove, 4, tmp);
-    text(r, WIDTH * 0.2, HEIGHT * 0.02, tmp, f, 0, 0, 0);
+        //progression bar
+        color(r, 255, 128, 0, 1);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.9*((time(0) - timer) % (DAY_LENGTH * 2 + TRANSITION_TIME * 2))/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        
+        //border
+        color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.9, 10, 0, 5, 5, 5, 5);
+
+
 }
 
 int initialise_particle(particle *p, SDL_Color *c)
