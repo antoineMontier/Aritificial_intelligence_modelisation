@@ -137,7 +137,13 @@ int main()
                 default:
                     break;
                 }
-            case SDL_MOUSEBUTTONUP:
+            case SDL_MOUSEBUTTONDOWN:
+                if(rollover(evt.button.x, evt.button.y, WIDTH*0.015, HEIGHT*0.09, WIDTH*0.07, HEIGHT*0.07)){
+                    //respawn
+                    for(int i = 0; i < PARTICLES_NUMBER; i++)
+                        if(part[i].alive != 1)
+                            initialise_particle(&part[i], colors);
+                }
                 break;
 
             default:
@@ -152,11 +158,11 @@ int main()
         iterations++;
         if (1000 / FRAMES_PER_SECOND > calcul_time)
         {
-            printf("fps = %.1lf\titerations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
+            printf("iterations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
             SDL_Delay(1000 / FRAMES_PER_SECOND - calcul_time); //);
         }
         else
-            printf("max calculation power reached ! fps = %.1lf\titerations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
+            printf("max calculation power reached ! iterations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
         SDL_RenderPresent(r); // refresh the render
     }
     free(part);
@@ -296,6 +302,11 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
         roundRect(r, WIDTH*0.32, HEIGHT*0.0035, 10, HEIGHT*0.09, 0, 5, 5, 5, 5);
         line(r, WIDTH*0.32, HEIGHT*0.009,WIDTH*0.35, HEIGHT*0.009);
         line(r, WIDTH*0.32+10, HEIGHT*0.087, WIDTH*0.3, HEIGHT*0.087);
+    //respawn button
+        color(r, 50, 50, 178, 0.5);
+        roundRect(r, WIDTH*0.015, HEIGHT*0.09, WIDTH*0.07, HEIGHT*0.07, 1, 5, 5, 5, 5);
+        text(r, WIDTH*0.042, HEIGHT*0.097, "re", f, (transition) * 255, (transition) * 255, (transition) * 255);
+        text(r, WIDTH*0.021, HEIGHT*0.125, "spawn", f, (transition) * 255, (transition) * 255, (transition) * 255);
 
 
 }
