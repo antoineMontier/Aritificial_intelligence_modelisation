@@ -88,7 +88,7 @@ int main()
     colors[4] = purple;
     colors[5] = cyan;
     char *tmp = malloc(10);
-    double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), dt = 0.0, real_fps = 0.0;
+    double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a =0, dt=0;
 
     particle *part = malloc(PARTICLES_NUMBER * sizeof(particle));
     for (int i = 0; i < PARTICLES_NUMBER; i++)
@@ -98,7 +98,7 @@ int main()
 
     while (program_launched)
     {
-
+        oldtime = SDL_GetTicks();
         for (int i = 0; i < PARTICLES_NUMBER; i++)
             move_particle(&part[i]);
 
@@ -138,13 +138,14 @@ int main()
                 break;
             }
         }
-        oldtime = newtime;
+        a = newtime;
         newtime = SDL_GetTicks();
-        dt = (newtime - oldtime);
+        dt = newtime - a;
+        calcul_time = (newtime - oldtime);
         real_fps = 1000/dt;
-        printf("fps = %3.1lf\titerations = %d\n", real_fps, iterations);
+        printf("fps = %3.1lf\titerations = %d\tdelta-time = %lf\n", real_fps, iterations, calcul_time);
         iterations++;
-        SDL_Delay(1000 / FRAMES_PER_SECOND);
+        SDL_Delay(1000 /FRAMES_PER_SECOND - calcul_time); //);
         SDL_RenderPresent(r); // refresh the render
     }
     free(part);
