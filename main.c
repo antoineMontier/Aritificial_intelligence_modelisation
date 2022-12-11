@@ -4,22 +4,23 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 24
-#define MAX_PARTICLES_NUMBER 100
-#define STARTING_PARTICLES_NUMBER 20
+#define MAX_PARTICLES_NUMBER 1000
+#define STARTING_PARTICLES_NUMBER 50
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 4
-#define DAY_LENGTH 3
+#define DAY_LENGTH 10
 #define NIGHT_LENGTH 2
-#define TRANSITION_TIME 1
+#define TRANSITION_TIME 2
 #define HOUSE_SIZE 70
-#define HOUSE_X (WIDTH*0.25 - HOUSE_SIZE/2)
-#define HOUSE_Y (HEIGHT*0.75 - HOUSE_SIZE/2)
+#define HOUSE_X (WIDTH*0.5 - HOUSE_SIZE/2)
+#define HOUSE_Y (HEIGHT*0.5 - HOUSE_SIZE/2)
 #define DIED_TIME 30
 #define PARTICLE_SIZE 10
 #define PARTICLE_VISION (20.0)
-#define FOOD_NUMBER 50
+#define FOOD_PER_DAY 10
+#define MAX_FOOD_NUMBER 500
 #define FOOD_SIZE 5
 
 typedef struct
@@ -103,9 +104,13 @@ int main()
     for(int i = STARTING_PARTICLES_NUMBER; i < MAX_PARTICLES_NUMBER; i++)
         part[i].alive = -DIED_TIME;
 
-    food *foods = malloc(FOOD_NUMBER * sizeof(food));
-    for(int i = 0; i < FOOD_NUMBER; i++)
+    food *foods = malloc(MAX_FOOD_NUMBER * sizeof(food));
+    for(int i = 0; i < MAX_FOOD_NUMBER; i++){
         initialise_food(&foods[i], colors);
+        foods[i].size = FOOD_SIZE;
+    }
+    for(int i = FOOD_PER_DAY; i < MAX_FOOD_NUMBER ; i++)
+        foods[i].size = -1;
 
     int iterations = 0, start_time = 0, go_home = 0;
     start_time = time(0);
@@ -142,7 +147,7 @@ int main()
 
         for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
             update_particle(&part[i], transition, go_home, foods, part);
-        for(int i = 0; i < FOOD_NUMBER; i++)
+        for(int i = 0; i < MAX_FOOD_NUMBER; i++)
             update_food(part, &foods[i], transition, go_home, colors);
 
         background(r, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25, WIDTH, HEIGHT);
@@ -150,7 +155,7 @@ int main()
         display_box(r);
         for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
             draw_particle(r, part[i]);
-        for(int i = 0 ; i < FOOD_NUMBER ; i++)
+        for(int i = 0 ; i < MAX_FOOD_NUMBER ; i++)
             draw_food(r, foods[i]);
 
 
@@ -261,6 +266,8 @@ void draw_particle(SDL_Renderer *r, particle p)
 }
 
 void draw_food(SDL_Renderer *r, food f){
+    if(f.size < 0)
+        return;
     color(r, f.color.r, f.color.g, f.color.b, f.color.a);
     circle(r, f.x, f.y, f.size, 1);
 }
@@ -279,8 +286,8 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
 
 
     if(p->food == 0){
-        for(int i = 0; i < FOOD_NUMBER; i++){
-            if(array_f[i].particle == -1 && dist(p->x, p->y, array_f[i].x, array_f[i].y) <= p->vision_field){//food avaible and in vision_field
+        for(int i = 0; i < MAX_FOOD_NUMBER; i++){
+            if(array_f[i].particle == -1 && array_f[i].size > -1 && dist(p->x, p->y, array_f[i].x, array_f[i].y) <= p->vision_field){//food avaible and in vision_field
                 //printf("hop %d", p->id);
                 array_f[i].particle = p->id;
                 p->food = 1;
@@ -320,10 +327,14 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
     //=================bounce================
     if (home == 0)
     {
-        if (p->x + p->size >= WIDTH * 0.9 || p->x - p->size <= WIDTH * 0.1)
-            p->angle -= 3.1415;
-        if (p->y + p->size >= HEIGHT * 0.9 || p->y - p->size <= HEIGHT * 0.1)
-            p->angle -= 3.1415;
+        if (p->x + p->size >= WIDTH * 0.9)
+            p->x = WIDTH * 0.9 - p->size;
+        if(p->x - p->size <= WIDTH * 0.1)
+            p->x = WIDTH * 0.1 + p->size;
+        if(p->y - p->size <= HEIGHT * 0.1)
+            p->y = HEIGHT * 0.1 + p->size;
+        if (p->y + p->size >= HEIGHT * 0.9)
+            p->y = HEIGHT * 0.9 - p->size;
     }
 
     return 0;
@@ -334,7 +345,7 @@ void update_food(particle *array_p, food*f, double animation, int home, SDL_Colo
         initialise_food(f, c);
         f->particle = -1;
     }
-    if(animation > 0 && f->size < FOOD_SIZE)
+    if(animation > 0 && f->size < FOOD_SIZE && f->size > -1)
         f->size += FOOD_SIZE/(double)TRANSITION_TIME;//reappear the food if day is comming
     if(home == 0 || animation > 0){//everything but not dark night
         if(f->particle != -1){
@@ -421,6 +432,11 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
         roundRect(r, WIDTH*0.015, HEIGHT*0.09, WIDTH*0.07, HEIGHT*0.07, 1, 5, 5, 5, 5);
         text(r, WIDTH*0.042, HEIGHT*0.097, "re", f, (transition) * 255, (transition) * 255, (transition) * 255);
         text(r, WIDTH*0.021, HEIGHT*0.125, "spawn", f, (transition) * 255, (transition) * 255, (transition) * 255);
+    //add food button
+        color(r, 50, 50, 178, 0.5);
+        roundRect(r, WIDTH*0.015, HEIGHT*0.18, WIDTH*0.07, HEIGHT*0.07, 1, 5, 5, 5, 5);
+        text(r, WIDTH*0.034, HEIGHT*0.187, "add", f, (transition) * 255, (transition) * 255, (transition) * 255);
+        text(r, WIDTH*0.03, HEIGHT*0.215, "food", f, (transition) * 255, (transition) * 255, (transition) * 255);
 
 
 }
@@ -455,7 +471,7 @@ int initialise_food(food*f, SDL_Color *c){
     }while(rollover(f->x, f->y, HOUSE_X - 10, HOUSE_Y - 10, HOUSE_SIZE + 20, HOUSE_SIZE + 20));
     f->particle = -1;
     f->color = c[0];
-    f->size = FOOD_SIZE;
+    //f->size = FOOD_SIZE;
     return 1;
 }
 
