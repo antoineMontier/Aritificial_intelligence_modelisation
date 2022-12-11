@@ -4,20 +4,21 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 24
-#define PARTICLES_NUMBER 50
+#define MAX_PARTICLES_NUMBER 100
+#define STARTING_PARTICLES_NUMBER 20
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
-#define PARTICLE_SPEED 2
-#define DAY_LENGTH 5
+#define PARTICLE_SPEED 4
+#define DAY_LENGTH 3
 #define NIGHT_LENGTH 2
-#define TRANSITION_TIME 2
+#define TRANSITION_TIME 1
 #define HOUSE_SIZE 70
 #define HOUSE_X (WIDTH*0.25 - HOUSE_SIZE/2)
 #define HOUSE_Y (HEIGHT*0.75 - HOUSE_SIZE/2)
 #define DIED_TIME 30
 #define PARTICLE_SIZE 10
-#define PARTICLE_VISION (10.0)
+#define PARTICLE_VISION (20.0)
 #define FOOD_NUMBER 50
 #define FOOD_SIZE 5
 
@@ -50,7 +51,7 @@ typedef struct{
 
 void display_box(SDL_Renderer *r);
 void draw_particle(SDL_Renderer *r, particle p);
-int update_particle(particle *p, double animation, int home, food*array_f); // returns 0 if particle in the box and 1 if outside
+int update_particle(particle *p, double animation, int home, food*array_f, particle *array_p);
 void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps);
 int initialise_particle(particle *p, SDL_Color *c, int i);
 void inherit_particle(particle *source, particle *target);
@@ -60,6 +61,7 @@ void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove);
 void setDestination(particle *p, int x, int y);
 int initialise_food(food*f, SDL_Color *c);
 void update_food(particle *array_p, food*f, double animation, int home, SDL_Color *c);
+void create(particle *array_p);
 
 
 int main()
@@ -95,9 +97,11 @@ int main()
     char *tmp = malloc(10); // transition : 1 is day, 0 is night
     double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a = 0, dt = 0, transition = 1.0;
 
-    particle *part = malloc(PARTICLES_NUMBER * sizeof(particle));
-    for (int i = 0; i < PARTICLES_NUMBER; i++)
+    particle *part = malloc(MAX_PARTICLES_NUMBER * sizeof(particle));
+    for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
         initialise_particle(&part[i], colors, i);
+    for(int i = STARTING_PARTICLES_NUMBER; i < MAX_PARTICLES_NUMBER; i++)
+        part[i].alive = -DIED_TIME;
 
     food *foods = malloc(FOOD_NUMBER * sizeof(food));
     for(int i = 0; i < FOOD_NUMBER; i++)
@@ -136,15 +140,15 @@ int main()
 
 
 
-        for (int i = 0; i < PARTICLES_NUMBER; i++)
-            update_particle(&part[i], transition, go_home, foods);
+        for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
+            update_particle(&part[i], transition, go_home, foods, part);
         for(int i = 0; i < FOOD_NUMBER; i++)
             update_food(part, &foods[i], transition, go_home, colors);
 
         background(r, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25, WIDTH, HEIGHT);
         display_informations(r, param_font, part, tmp, start_time, transition, real_fps);
         display_box(r);
-        for (int i = 0; i < PARTICLES_NUMBER; i++)
+        for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
             draw_particle(r, part[i]);
         for(int i = 0 ; i < FOOD_NUMBER ; i++)
             draw_food(r, foods[i]);
@@ -187,9 +191,14 @@ int main()
             case SDL_MOUSEBUTTONDOWN:
                 if(rollover(evt.button.x, evt.button.y, WIDTH*0.015, HEIGHT*0.09, WIDTH*0.07, HEIGHT*0.07)){
                     //respawn
-                    for(int i = 0; i < PARTICLES_NUMBER; i++)
-                        if(part[i].alive != 1)
-                            initialise_particle(&part[i], colors, -1);
+                    int alive = 0;
+                    for(int i = 0; i < MAX_PARTICLES_NUMBER; i++)
+                        if(part[i].alive == 1)
+                            alive++;
+                    while(alive < STARTING_PARTICLES_NUMBER){
+                        create(part);
+                        alive++;
+                    }
                 }
                 break;
 
@@ -257,7 +266,7 @@ void draw_food(SDL_Renderer *r, food f){
 }
 
 
-int update_particle(particle *p, double animation, int home, food*array_f)
+int update_particle(particle *p, double animation, int home, food*array_f, particle *array_p)
 {
     if(p->alive < -DIED_TIME)
         return 0;
@@ -267,11 +276,7 @@ int update_particle(particle *p, double animation, int home, food*array_f)
         return 0;
     }
 
-    if (home == 0 && animation <= 1/(double)TRANSITION_TIME){
-        p->food = 0;
-        p->destination_distance = 1;
-        p->time_to_go = 1;
-    }
+
 
     if(p->food == 0){
         for(int i = 0; i < FOOD_NUMBER; i++){
@@ -293,20 +298,24 @@ int update_particle(particle *p, double animation, int home, food*array_f)
     {
         setDestination(p, HOUSE_X + HOUSE_SIZE / 2.0, HOUSE_Y + HOUSE_SIZE / 2.0);
         p->time_to_go = 2;
-        if (animation == 0.0){
-            if(p->alive == 1 && ((p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE)||p->food == 0))
+        if (animation == 0.0){//dark night
+            if(p->alive == 1 && (p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE))
             {
                 p->alive = 0;
                 return 0;
+            }else if(p->food == 1){
+                create(array_p);
+                p->food = 0;
             }
         }
     }
 
-
-    p->x += p->speed * cos(p->angle);
-    p->y += p->speed * sin(p->angle);
-    p->destination_distance -= p->speed;
-    p->time_to_go -= 1;
+    if(((p->food != 1 && home != 1) || p->destination_distance > HOUSE_SIZE*0.4)){
+        p->x += p->speed * cos(p->angle);
+        p->y += p->speed * sin(p->angle);
+        p->destination_distance -= p->speed;
+        p->time_to_go -= 1;
+    }
 
     //=================bounce================
     if (home == 0)
@@ -321,7 +330,7 @@ int update_particle(particle *p, double animation, int home, food*array_f)
 }
 
 void update_food(particle *array_p, food*f, double animation, int home, SDL_Color *c){
-    if (f->particle!= -1 && home == 0 && animation < 1){
+    if (f->particle != -1 && array_p[f->particle].food == 0){
         initialise_food(f, c);
         f->particle = -1;
     }
@@ -379,14 +388,14 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
         text(r, WIDTH*0.004, HEIGHT*0.04, "alive", f, 0, 255, 48);
         //first let's count the number of alive particle
         int alive = 0;
-        for (int i = 0; i < PARTICLES_NUMBER ; i++)
+        for (int i = 0; i < MAX_PARTICLES_NUMBER ; i++)
             if(p[i].alive == 1)
                 alive++;
         gcvt(alive, 4, tmp);
         text(r, WIDTH*0.26, HEIGHT*0.042, tmp, f, 0, 255, 48);
         //filling bar
         color(r, 0, 255, 48, 1);
-        roundRect(r, WIDTH*0.05, HEIGHT*0.047, WIDTH*0.2*(alive/(float)PARTICLES_NUMBER), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.047, WIDTH*0.2*(alive/(float)MAX_PARTICLES_NUMBER), 10, 1, 5, 5, 5, 5);
         //border
         color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
         roundRect(r, WIDTH*0.05, HEIGHT*0.047, WIDTH*0.2, 10, 0, 5, 5, 5, 5);
@@ -450,6 +459,23 @@ int initialise_food(food*f, SDL_Color *c){
     return 1;
 }
 
+void create(particle *array_p){
+    for(int i = 0; i < MAX_PARTICLES_NUMBER ; i++){
+        if(array_p[i].alive <= 0){
+            array_p[i].alive = 1;
+            array_p[i].x = HOUSE_X + HOUSE_SIZE/2;
+            array_p[i].y = HOUSE_Y + HOUSE_SIZE/2;
+            array_p[i].size = PARTICLE_SIZE;
+            array_p[i].vision_field = PARTICLE_VISION;
+            array_p[i].food = 0; 
+            array_p[i].speed = PARTICLE_SPEED;
+            array_p[i].angle = 0;
+            array_p[i].destination_distance = 0;
+            array_p[i].time_to_go = 2;
+            return;
+        }
+    }
+}
 
 void inherit_particle(particle *source, particle *target)
 {
