@@ -9,19 +9,20 @@
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 2
-#define DAY_LENGTH 4
+#define DAY_LENGTH 10
 #define TRANSITION_TIME 2
 #define HOUSE_SIZE 70
 #define HOUSE_X (WIDTH*0.25 - HOUSE_SIZE/2)
 #define HOUSE_Y (HEIGHT*0.75 - HOUSE_SIZE/2)
 #define DIED_TIME 30
 #define PARTICLE_SIZE 10
-#define PARTICLE_VISION (5.0)
+#define PARTICLE_VISION (10.0)
 #define FOOD_NUMBER 50
 #define FOOD_SIZE 5
 
 typedef struct
 {
+    int id;
     double vision_field;
     int food;
     int alive;
@@ -48,9 +49,9 @@ typedef struct{
 
 void display_box(SDL_Renderer *r);
 void draw_particle(SDL_Renderer *r, particle p);
-int move_particle(particle *p, double animation, int home); // returns 0 if particle in the box and 1 if outside
+int update_particle(particle *p, double animation, int home, food*array_f); // returns 0 if particle in the box and 1 if outside
 void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps);
-int initialise_particle(particle *p, SDL_Color *c);
+int initialise_particle(particle *p, SDL_Color *c, int i);
 void inherit_particle(particle *source, particle *target);
 void copy_particle(particle *source, particle *target);
 void close_Particle(particle **p);
@@ -95,7 +96,7 @@ int main()
 
     particle *part = malloc(PARTICLES_NUMBER * sizeof(particle));
     for (int i = 0; i < PARTICLES_NUMBER; i++)
-        initialise_particle(&part[i], colors);
+        initialise_particle(&part[i], colors, i);
 
     food *foods = malloc(FOOD_NUMBER * sizeof(food));
     for(int i = 0; i < FOOD_NUMBER; i++)
@@ -135,7 +136,7 @@ int main()
 
 
         for (int i = 0; i < PARTICLES_NUMBER; i++)
-            move_particle(&part[i], transition, go_home);
+            update_particle(&part[i], transition, go_home, foods);
         for(int i = 0; i < FOOD_NUMBER; i++)
             update_food(part, &foods[i], transition, go_home, colors);
 
@@ -187,7 +188,7 @@ int main()
                     //respawn
                     for(int i = 0; i < PARTICLES_NUMBER; i++)
                         if(part[i].alive != 1)
-                            initialise_particle(&part[i], colors);
+                            initialise_particle(&part[i], colors, -1);
                 }
                 break;
 
@@ -243,6 +244,10 @@ void draw_particle(SDL_Renderer *r, particle p)
     if (p.alive <= 0)
         color(r, 0, 0, 0, 1);
     circle(r, p.x, p.y, p.size, 1);
+    if(p.food == 1){
+        color(r, 0, 0, 0, 1);
+        circle(r, p.x, p.y, p.size/3, 1);
+    }
 }
 
 void draw_food(SDL_Renderer *r, food f){
@@ -251,13 +256,30 @@ void draw_food(SDL_Renderer *r, food f){
 }
 
 
-int move_particle(particle *p, double animation, int home)
+int update_particle(particle *p, double animation, int home, food*array_f)
 {
     if(p->alive < -DIED_TIME)
         return 0;
     else if (p->alive <= 0){
         p->alive -= 1;
         p->size -= PARTICLE_SIZE/(float)DIED_TIME;//decrease size if died
+        return 0;
+    }
+
+    if (home == 0 && animation <= 1/(double)TRANSITION_TIME){
+        p->food = 0;
+        p->destination_distance = 1;
+        p->time_to_go = 1;
+    }
+
+    if(p->food == 0){
+        for(int i = 0; i < FOOD_NUMBER; i++){
+            if(array_f[i].particle == -1 && dist(p->x, p->y, array_f[i].x, array_f[i].y) <= p->vision_field){//food avaible and in vision_field
+                //printf("hop %d", p->id);
+                array_f[i].particle = p->id;
+                p->food = 1;
+            }
+        }
     }
 
     if (p->time_to_go <= 0 || p->destination_distance <= 2)
@@ -266,16 +288,19 @@ int move_particle(particle *p, double animation, int home)
         p->destination_distance = rand() % (int)fmin(HEIGHT, WIDTH);
         p->time_to_go = rand() % 60;
     }
-    if (home == 1)
+    if (home == 1 || p->food == 1)
     {
         setDestination(p, HOUSE_X + HOUSE_SIZE / 2.0, HOUSE_Y + HOUSE_SIZE / 2.0);
-        p->time_to_go = 5;
-        if (animation == 0.0 && p->alive == 1 && (p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE))
-        {
-            p->alive = 0;
-            return 0;
+        p->time_to_go = 2;
+        if (animation == 0.0){
+            if(p->alive == 1 && ((p->x + p->size < HOUSE_X || p->x - p->size > HOUSE_X + HOUSE_SIZE || p->y + p->size < HOUSE_Y || p->y - p->size > HOUSE_Y + HOUSE_SIZE)||p->food == 0))
+            {
+                p->alive = 0;
+                return 0;
+            }
         }
     }
+
 
     p->x += p->speed * cos(p->angle);
     p->y += p->speed * sin(p->angle);
@@ -295,12 +320,12 @@ int move_particle(particle *p, double animation, int home)
 }
 
 void update_food(particle *array_p, food*f, double animation, int home, SDL_Color *c){
-    if(f->particle == -1 && rollover(f->x, f->y, HOUSE_X - 10, HOUSE_Y - 10, HOUSE_SIZE + 20, HOUSE_SIZE + 20)){//no food inside house
-        f->x = WIDTH * 0.11 + rand() % WIDTH * 0.78;
-        f->y = HEIGHT * 0.11 + rand() % HEIGHT * 0.78;
+    if (f->particle!= -1 && home == 0 && animation < 1){
+        initialise_food(f, c);
+        f->particle = -1;
     }
     if(animation > 0 && f->size < FOOD_SIZE)
-        f->size += FOOD_SIZE/TRANSITION_TIME;//reappear the food if day is comming
+        f->size += FOOD_SIZE/(double)TRANSITION_TIME;//reappear the food if day is comming
     if(home == 0 || animation > 0){//everything but not dark night
         if(f->particle != -1){
             f->x = array_p[f->particle].x;//food is on particle
@@ -313,7 +338,7 @@ void update_food(particle *array_p, food*f, double animation, int home, SDL_Colo
             }else{
                 f->x = array_p[f->particle].x;
                 f->y = array_p[f->particle].y;
-                f->size -= FOOD_SIZE/(double)DAY_LENGTH;//decrease food size with time as if it was eaten
+                f->size -= FOOD_SIZE/(double)TRANSITION_TIME;//decrease food size with time as if it was eaten
             }
         }
     }
@@ -390,7 +415,7 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
 
 }
 
-int initialise_particle(particle *p, SDL_Color *c)
+int initialise_particle(particle *p, SDL_Color *c, int i)
 {
     p->vision_field = PARTICLE_VISION;
     p->food = 0; 
@@ -408,12 +433,16 @@ int initialise_particle(particle *p, SDL_Color *c)
     p->color.a = c[col].a;
     p->round = 0;
     p->alive = 1;
+    if(i != -1)
+        p->id = i;
     return 1;
 }
 
 int initialise_food(food*f, SDL_Color *c){
-    f->x = WIDTH * 0.11 + rand() % WIDTH * 0.78;
-    f->y = HEIGHT * 0.11 + rand() % HEIGHT * 0.78;
+    do{
+        f->x = WIDTH * 0.11 + rand() % WIDTH * 0.78;
+        f->y = HEIGHT * 0.11 + rand() % HEIGHT * 0.78;
+    }while(rollover(f->x, f->y, HOUSE_X - 10, HOUSE_Y - 10, HOUSE_SIZE + 20, HOUSE_SIZE + 20));
     f->particle = -1;
     f->color = c[0];
     f->size = FOOD_SIZE;
