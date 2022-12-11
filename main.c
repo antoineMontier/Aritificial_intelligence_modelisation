@@ -9,7 +9,8 @@
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 2
-#define DAY_LENGTH 10
+#define DAY_LENGTH 5
+#define NIGHT_LENGTH 2
 #define TRANSITION_TIME 2
 #define HOUSE_SIZE 70
 #define HOUSE_X (WIDTH*0.25 - HOUSE_SIZE/2)
@@ -107,22 +108,22 @@ int main()
     while (program_launched)
     {
         // day & nigth management
-        if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH)
+        if ((time(0) - start_time) % (DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME*2) <= DAY_LENGTH)
         { // day
             transition = 1.0;
             go_home = 0;
         }
-        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH + TRANSITION_TIME)
+        else if ((time(0) - start_time) % (DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME*2) <= DAY_LENGTH + TRANSITION_TIME)
         { // switch to night
             transition -= 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 1;
         }
-        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH * 2 + TRANSITION_TIME)
+        else if ((time(0) - start_time) % (DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME*2) <= DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME)
         { // night
             transition = 0.0;
             go_home = 1;
         }
-        else if ((time(0) - start_time) % (DAY_LENGTH * 2 + TRANSITION_TIME*2) <= DAY_LENGTH * 2 + TRANSITION_TIME * 2)
+        else if ((time(0) - start_time) % (DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME*2) <= DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2)
         { // switch to day
             transition += 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 0;
@@ -352,23 +353,23 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
 
         //ending grey part
         color(r, 128, 128, 128, 1);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH*2 + TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME)/(DAY_LENGTH +NIGHT_LENGTH + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH + NIGHT_LENGTH+ TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
         
         //1 black part
         color(r, 50, 50, 50, 1);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH+TRANSITION_TIME)/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) - 5, HEIGHT*0.01, WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 0, 0, 0, 0);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*(DAY_LENGTH+TRANSITION_TIME)/(DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2.0) - 5, HEIGHT*0.01, WIDTH*0.24*NIGHT_LENGTH/(DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 0, 0, 0, 0);
         //1 white part (useless)
         color(r, 200, 200, 200, 1);
-        roundRect(r, WIDTH*0.05 , HEIGHT*0.01, WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 0, 5, 0);
+        roundRect(r, WIDTH*0.05 , HEIGHT*0.01, WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH +NIGHT_LENGTH+ TRANSITION_TIME * 2.0) + 5*2, 10, 1, 5, 0, 5, 0);
 
         //middle grey part
         color(r, 128, 128, 128, 1);
-        roundRect(r, WIDTH*0.05 + WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 0, 0, 0, 0);
+        roundRect(r, WIDTH*0.05 + WIDTH*0.24*DAY_LENGTH/(DAY_LENGTH +NIGHT_LENGTH+ TRANSITION_TIME * 2.0), HEIGHT*0.01, WIDTH*0.24*TRANSITION_TIME/(DAY_LENGTH +NIGHT_LENGTH + TRANSITION_TIME * 2.0), 10, 1, 0, 0, 0, 0);
 
 
         //progression bar
         color(r, 255, 128, 0, 1);
-        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.24*((time(0) - timer) % (DAY_LENGTH * 2 + TRANSITION_TIME * 2))/(DAY_LENGTH * 2.0 + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
+        roundRect(r, WIDTH*0.05, HEIGHT*0.01, WIDTH*0.24*((time(0) - timer) % (DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2))/(DAY_LENGTH +NIGHT_LENGTH + TRANSITION_TIME * 2.0), 10, 1, 5, 5, 5, 5);
         
         //border
         color(r, (1-transition) * 255, (1-transition) * 255, (1-transition) * 255, 1);
