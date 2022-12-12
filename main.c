@@ -5,7 +5,7 @@
 #include <time.h>
 #define FRAMES_PER_SECOND 24
 #define MAX_PARTICLES_NUMBER 1000
-#define STARTING_PARTICLES_NUMBER 50
+#define STARTING_PARTICLES_NUMBER 10
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
@@ -269,7 +269,11 @@ void draw_particle(SDL_Renderer *r, particle p)
     if(p.food == 1){
         color(r, 0, 0, 0, 1);
         circle(r, p.x, p.y, p.size/3, 1);
+    }else if(p.food == 2){
+        color(r, p.color.r/2, p.color.g/2, p.color.b/2, p.color.a/2);
+        circle(r, p.x, p.y, p.size, 1);
     }
+    
 }
 
 void draw_food(SDL_Renderer *r, food f){
@@ -292,12 +296,12 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
 
 
 
-    if(p->food == 0){
+    if(p->food < 2){
         for(int i = 0; i < MAX_FOOD_NUMBER; i++){
             if(array_f[i].particle == -1 && array_f[i].size > -1 && dist(p->x, p->y, array_f[i].x, array_f[i].y) <= p->vision_field){//food avaible and in vision_field
                 //printf("hop %d", p->id);
                 array_f[i].particle = p->id;
-                p->food = 1;
+                p->food += 1;
             }
         }
     }
@@ -308,7 +312,7 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
         p->destination_distance = rand() % (int)fmin(HEIGHT, WIDTH);
         p->time_to_go = rand() % 60;
     }
-    if (home == 1 || p->food == 1)
+    if (home == 1 || p->food == 2)
     {
         setDestination(p, HOUSE_X + HOUSE_SIZE / 2.0, HOUSE_Y + HOUSE_SIZE / 2.0);
         p->time_to_go = 2;
@@ -318,13 +322,16 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
                 p->alive = 0;
                 return 0;
             }else if(p->food == 1){
+                p->food = -1;//means survive
+            }else if(p->food == 2){
+                p->food = -1;//means survive
                 create(array_p);
-                p->food = 0;
-            }
+            }else if(p->food == 0)
+                p->alive = 0;
         }
     }
 
-    if(((p->food != 1 && home != 1) || p->destination_distance > HOUSE_SIZE*0.4)){
+    if(((p->food <2 && home != 1) || dist(p->x, p->y, HOUSE_X+HOUSE_SIZE/2, HOUSE_Y+HOUSE_SIZE/2) > HOUSE_SIZE*0.4)){
         p->x += p->speed * cos(p->angle);
         p->y += p->speed * sin(p->angle);
         p->destination_distance -= p->speed;
@@ -334,6 +341,8 @@ int update_particle(particle *p, double animation, int home, food*array_f, parti
     //=================bounce================
     if (home == 0)
     {
+        if(p->food == -1)
+            p->food = 0;
         if (p->x + p->size >= WIDTH * 0.9)
             p->x = WIDTH * 0.9 - p->size;
         if(p->x - p->size <= WIDTH * 0.1)
@@ -490,7 +499,7 @@ void create(particle *array_p){
             array_p[i].y = HOUSE_Y + HOUSE_SIZE/2;
             array_p[i].size = PARTICLE_SIZE;
             array_p[i].vision_field = PARTICLE_VISION;
-            array_p[i].food = 0; 
+            array_p[i].food = -1; 
             array_p[i].speed = PARTICLE_SPEED;
             array_p[i].angle = 0;
             array_p[i].destination_distance = 0;
