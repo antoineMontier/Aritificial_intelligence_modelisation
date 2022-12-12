@@ -4,22 +4,22 @@
 #include <assert.h>
 #include <time.h>
 #define FRAMES_PER_SECOND 24
-#define MAX_PARTICLES_NUMBER 1000
+#define MAX_PARTICLES_NUMBER 10000
 #define STARTING_PARTICLES_NUMBER 10
 #define NB_COLORS 6
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 4
-#define DAY_LENGTH 4
+#define DAY_LENGTH 20
 #define NIGHT_LENGTH 2
-#define TRANSITION_TIME 2
+#define TRANSITION_TIME 4
 #define HOUSE_SIZE 70
 #define HOUSE_X (WIDTH * 0.5 - HOUSE_SIZE / 2)
 #define HOUSE_Y (HEIGHT * 0.5 - HOUSE_SIZE / 2)
 #define DIED_TIME 30
 #define PARTICLE_SIZE 10
 #define PARTICLE_VISION (20.0)
-#define MAX_FOOD_NUMBER 500
+#define MAX_FOOD_NUMBER 10000
 #define FOOD_SIZE 5
 
 typedef struct
@@ -62,6 +62,7 @@ int initialise_food(food *f, SDL_Color *c);
 void update_food(particle *array_p, food *f, double animation, int home, SDL_Color *c);
 void stabilise_food_number(food *array_f, int number);
 void create(particle *array_p);
+void draw_food(SDL_Renderer *r, food f);
 
 int main()
 { /*gcc -c -Wall -Wextra main.c && gcc main.o -lm -o main && ./main*/
@@ -137,6 +138,8 @@ int main()
             transition += 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 0;
             if(day_var == 1){
+                for(int i = 0 ; i < MAX_PARTICLES_NUMBER ; i++)
+                    part[i].food = 0;
                 day_var = 0;
                 stabilise_food_number(foods, food_per_day);
             }
@@ -229,11 +232,11 @@ int main()
         iterations++;
         if (1000 / FRAMES_PER_SECOND > calcul_time)
         {
-            printf("iterations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
+            printf("iterations = %d\tcalcul-time = %.1lf\t program has been running for %ld sec\n", iterations, calcul_time, time(0) - start_time);
             SDL_Delay(1000 / FRAMES_PER_SECOND - calcul_time); //);
         }
         else
-            printf("max calculation power reached ! iterations = %d\tcalcul-time = %.1lf\t program has been running for %d sec\n", real_fps, iterations, calcul_time, time(0) - start_time);
+            printf("max calculation power reached ! iterations = %d\tcalcul-time = %.1lf\t program has been running for %ld sec\n", iterations, calcul_time, time(0) - start_time);
         SDL_RenderPresent(r); // refresh the render
     }
     free(foods);
