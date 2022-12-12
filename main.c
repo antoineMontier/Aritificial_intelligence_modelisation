@@ -10,7 +10,7 @@
 #define ADN_TRANSMISSION 0.5
 #define AUTO_TRANSMISSION 0.1
 #define PARTICLE_SPEED 4
-#define DAY_LENGTH 10
+#define DAY_LENGTH 4
 #define NIGHT_LENGTH 2
 #define TRANSITION_TIME 2
 #define HOUSE_SIZE 70
@@ -60,6 +60,7 @@ void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove);
 void setDestination(particle *p, int x, int y);
 int initialise_food(food *f, SDL_Color *c);
 void update_food(particle *array_p, food *f, double animation, int home, SDL_Color *c);
+void stabilise_food_number(food *array_f, int number);
 void create(particle *array_p);
 
 int main()
@@ -94,7 +95,7 @@ int main()
     colors[5] = cyan;
     char *tmp = malloc(10); // transition : 1 is day, 0 is night
     double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a = 0, dt = 0, transition = 1.0;
-    int iterations = 0, start_time = 0, go_home = 0, see_vision = 0, food_per_day = 10;
+    int iterations = 0, start_time = 0, go_home = 0, see_vision = 0, food_per_day = 5, day_var = 0;
 
     particle *part = malloc(MAX_PARTICLES_NUMBER * sizeof(particle));
     for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
@@ -129,11 +130,16 @@ int main()
         { // night
             transition = 0.0;
             go_home = 1;
+            day_var = 1;
         }
         else if ((time(0) - start_time) % (DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2) <= DAY_LENGTH + NIGHT_LENGTH + TRANSITION_TIME * 2)
         { // switch to day
             transition += 1 / (float)(TRANSITION_TIME * FRAMES_PER_SECOND);
             go_home = 0;
+            if(day_var == 1){
+                day_var = 0;
+                stabilise_food_number(foods, food_per_day);
+            }
         }
 
         oldtime = SDL_GetTicks();
@@ -576,4 +582,28 @@ void setDestination(particle *p, int x, int y)
 {
     p->destination_distance = dist(p->x, p->y, x, y);
     p->angle = atan2(y - p->y, x - p->x);
+}
+
+void stabilise_food_number(food *array_f, int number){
+    number = (int)fmin(number, MAX_FOOD_NUMBER-1);
+    int count = 0;
+    for(int i = 0 ; i < MAX_FOOD_NUMBER ; i++)
+        if(array_f[i].size > 0)
+            count++;
+    if(count > number){
+        while(count > number)
+            for(int i = 0 ; i < MAX_FOOD_NUMBER ; i++)
+                if(array_f[i].size > 0){
+                    array_f[i].size = -1;
+                    count--;
+                    i = MAX_FOOD_NUMBER;
+                }
+    }else if(count < number)
+        while(count < number)
+            for(int i = 0 ; i < MAX_FOOD_NUMBER ; i++)
+                if(array_f[i].size < 0){
+                    array_f[i].size = FOOD_SIZE;
+                    count++;
+                    i = MAX_FOOD_NUMBER;
+                }
 }
