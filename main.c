@@ -204,6 +204,13 @@ int main()
                         create(part);
                         alive++;
                     }
+                }else if(rollover(evt.button.x, evt.button.y, WIDTH*0.015, HEIGHT*0.18, WIDTH*0.07, HEIGHT*0.07)){
+                    //find a food to add
+                    for(int i = 0; i < MAX_FOOD_NUMBER; i++)
+                        if(foods[i].size < 0){
+                            foods[i].size = FOOD_SIZE;
+                            i = MAX_FOOD_NUMBER;
+                        }
                 }
                 break;
 
