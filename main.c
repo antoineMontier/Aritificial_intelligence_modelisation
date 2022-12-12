@@ -51,7 +51,7 @@ typedef struct{
 
 
 void display_box(SDL_Renderer *r);
-void draw_particle(SDL_Renderer *r, particle p);
+void draw_particle(SDL_Renderer *r, particle p, int vision);
 int update_particle(particle *p, double animation, int home, food*array_f, particle *array_p);
 void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps);
 int initialise_particle(particle *p, SDL_Color *c, int i);
@@ -112,7 +112,7 @@ int main()
     for(int i = FOOD_PER_DAY; i < MAX_FOOD_NUMBER ; i++)
         foods[i].size = -1;
 
-    int iterations = 0, start_time = 0, go_home = 0;
+    int iterations = 0, start_time = 0, go_home = 0, see_vision = 0;
     start_time = time(0);
     while (program_launched)
     {
@@ -154,7 +154,7 @@ int main()
         display_informations(r, param_font, part, tmp, start_time, transition, real_fps);
         display_box(r);
         for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
-            draw_particle(r, part[i]);
+            draw_particle(r, part[i], see_vision);
         for(int i = 0 ; i < MAX_FOOD_NUMBER ; i++)
             draw_food(r, foods[i]);
 
@@ -211,7 +211,8 @@ int main()
                             foods[i].size = FOOD_SIZE;
                             i = MAX_FOOD_NUMBER;
                         }
-                }
+                }else if(rollover(evt.button.x, evt.button.y,WIDTH*0.015, HEIGHT*0.27, WIDTH*0.07, HEIGHT*0.07))
+                    see_vision = !see_vision;
                 break;
 
             default:
@@ -258,7 +259,7 @@ void display_box(SDL_Renderer *r)
     roundRect(r, HOUSE_X, HOUSE_Y, HOUSE_SIZE, HOUSE_SIZE, 1, 10, 10, 10, 10);
 }
 
-void draw_particle(SDL_Renderer *r, particle p)
+void draw_particle(SDL_Renderer *r, particle p, int vision)
 {
     if(p.alive < -DIED_TIME)
         return;
@@ -272,6 +273,10 @@ void draw_particle(SDL_Renderer *r, particle p)
     }else if(p.food == 2){
         color(r, p.color.r/2, p.color.g/2, p.color.b/2, p.color.a/2);
         circle(r, p.x, p.y, p.size, 1);
+    }
+    if(vision){
+        color(r, 0, 0, 0, 1);
+        circle(r, p.x, p.y, p.vision_field, 0);
     }
     
 }
@@ -453,8 +458,11 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
         roundRect(r, WIDTH*0.015, HEIGHT*0.18, WIDTH*0.07, HEIGHT*0.07, 1, 5, 5, 5, 5);
         text(r, WIDTH*0.034, HEIGHT*0.187, "add", f, (transition) * 255, (transition) * 255, (transition) * 255);
         text(r, WIDTH*0.03, HEIGHT*0.215, "food", f, (transition) * 255, (transition) * 255, (transition) * 255);
-
-
+    //see vision_field button
+        color(r, 50, 50, 178, 0.5);
+        roundRect(r, WIDTH*0.015, HEIGHT*0.27, WIDTH*0.07, HEIGHT*0.07, 1, 5, 5, 5, 5);
+        text(r, WIDTH*0.034, HEIGHT*0.277, "see", f, (transition) * 255, (transition) * 255, (transition) * 255);
+        text(r, WIDTH*0.024, HEIGHT*0.305, "vision", f, (transition) * 255, (transition) * 255, (transition) * 255);
 }
 
 int initialise_particle(particle *p, SDL_Color *c, int i)
