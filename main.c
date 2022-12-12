@@ -206,18 +206,21 @@ int main()
                 }
                 else if (rollover(evt.button.x, evt.button.y, WIDTH * 0.015, HEIGHT * 0.27, WIDTH * 0.07, HEIGHT * 0.07))//vision button
                     see_vision = !see_vision;
-                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.455, HEIGHT * 0.008, WIDTH*0.093, 0.022*HEIGHT))//food add per day button
+                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.455, HEIGHT * 0.008, WIDTH*0.046, 0.022*HEIGHT))//food add per day button (+)
                     food_per_day = (int)fmin(food_per_day+1, MAX_FOOD_NUMBER-1);
-                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.455, HEIGHT * 0.07, WIDTH*0.093, 0.022*HEIGHT))//food decrease per day button
+                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.455, HEIGHT * 0.07, WIDTH*0.046, 0.022*HEIGHT))//food decrease per day button (-)
                     food_per_day = (int)fmax(food_per_day-1, 0);
+                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.5, HEIGHT * 0.07, WIDTH*0.046, 0.022*HEIGHT))//food decrease per day button (--)
+                    food_per_day = (int)fmax(food_per_day-10, 0);
+                else if(rollover(evt.button.x, evt.button.y, WIDTH * 0.5, HEIGHT * 0.008, WIDTH*0.046, 0.022*HEIGHT))//food add per day button (++)
+                    food_per_day = (int)fmin(food_per_day+10, MAX_FOOD_NUMBER-1);
                 break;
-
             default:
                 break;
             }
         }
         //color(r, 0, 255, 0, .5);
-        //rect(r, WIDTH * 0.455, HEIGHT * 0.07, WIDTH*0.093, 0.022*HEIGHT, 0);
+        //rect(r, WIDTH * 0.5, HEIGHT * 0.07, WIDTH*0.046, 0.022*HEIGHT, 0);
         a = newtime;
         newtime = SDL_GetTicks();
         dt = newtime - a;
@@ -492,9 +495,13 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
     color(r, 255, 0, 0, 1);
     line(r, WIDTH * 0.455, HEIGHT * 0.0045+5, WIDTH * 0.455, HEIGHT * 0.0045+ HEIGHT * 0.09-5);
     line(r, WIDTH * 0.455, HEIGHT * 0.03, WIDTH * 0.55, HEIGHT * 0.03);// + button
-    text(r, WIDTH * 0.493, HEIGHT * 0.0076, "+", f, 255, 0, 0);
+    text(r, WIDTH * 0.473, HEIGHT * 0.0076, "+", f, 255, 0, 0);
+    line(r, WIDTH * 0.5, HEIGHT * 0.0076, WIDTH * 0.5, HEIGHT * 0.03);
+    text(r, WIDTH * 0.513, HEIGHT * 0.0076, "++", f, 255, 0, 0);
     line(r, WIDTH * 0.455, HEIGHT * 0.07, WIDTH * 0.55, HEIGHT * 0.07);// - button
-    text(r, WIDTH * 0.493, HEIGHT * 0.068, "-", f, 255, 0, 0);
+    text(r, WIDTH * 0.473, HEIGHT * 0.068, "-", f, 255, 0, 0);
+    line(r, WIDTH * 0.5, HEIGHT * 0.07, WIDTH * 0.5, HEIGHT * 0.091);
+    text(r, WIDTH * 0.514, HEIGHT * 0.068, "--", f, 255, 0, 0);
     gcvt(food_per_d, 3, tmp);
     text(r, WIDTH * 0.49, HEIGHT * 0.038, tmp, f, 255, 0, 0);//food per day number display
 }
