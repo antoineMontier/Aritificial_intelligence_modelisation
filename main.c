@@ -53,7 +53,7 @@ void draw_particle(SDL_Renderer *r, particle p, int vision);
 int update_particle(particle *p, double animation, int home, food *array_f, particle *array_p);
 void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, int timer, double transition, double fps, int food_per_d);
 int initialise_particle(particle *p, SDL_Color *c, int i);
-void inherit_particle(particle *source, particle *target);
+void inherit_particle(particle *array_p, int index);
 void copy_particle(particle *source, particle *target);
 void close_Particle(particle **p);
 void draw_path(SDL_Renderer *r, SDL_Point *p, int bestmove);
@@ -63,6 +63,7 @@ void update_food(particle *array_p, food *f, double animation, int home, SDL_Col
 void stabilise_food_number(food *array_f, int number);
 void create(particle *array_p);
 void draw_food(SDL_Renderer *r, food f);
+int colorEq(SDL_Color a, SDL_Color b);
 
 int main()
 { /*gcc -c -Wall -Wextra main.c && gcc main.o -lm -o main && ./main*/
@@ -90,13 +91,13 @@ int main()
 
     colors[0] = red;
     colors[1] = green;
-    colors[2] = blue;
+    colors[2] = cyan;
     colors[3] = yellow;
     colors[4] = purple;
-    colors[5] = cyan;
+    colors[5] = blue;
     char *tmp = malloc(10); // transition : 1 is day, 0 is night
     double oldtime = SDL_GetTicks(), newtime = SDL_GetTicks(), calcul_time = 0.0, real_fps = 0.0, a = 0, dt = 0, transition = 1.0;
-    int iterations = 0, start_time = 0, go_home = 0, see_vision = 0, food_per_day = 5, day_var = 0;
+    int iterations = 0, start_time = 0, go_home = 0, see_vision = 0, food_per_day = 50, day_var = 0;
 
     particle *part = malloc(MAX_PARTICLES_NUMBER * sizeof(particle));
     for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
@@ -295,6 +296,9 @@ void draw_food(SDL_Renderer *r, food f)
         return;
     color(r, f.color.r, f.color.g, f.color.b, f.color.a);
     circle(r, f.x, f.y, f.size, 1);
+    color(r, 0, 0, 0, 1);
+    circle(r, f.x, f.y, f.size, 0);
+
 }
 
 int update_particle(particle *p, double animation, int home, food *array_f, particle *array_p)
@@ -345,7 +349,7 @@ int update_particle(particle *p, double animation, int home, food *array_f, part
             else if (p->food == 2)
             {
                 p->food = -1; // means survive
-                create(array_p);
+                inherit_particle(array_p, p->id);
             }
             else if (p->food == 0)
                 p->alive = 0;
@@ -399,7 +403,7 @@ void update_food(particle *array_p, food *f, double animation, int home, SDL_Col
     { // dark night
         if (f->particle != -1)
         {
-            if (array_p[f->particle].alive == 0)
+            if (array_p[f->particle].alive <= 0)
             { // drop food if particle is dead
                 f->particle = -1;
             }
@@ -511,20 +515,29 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
 
 int initialise_particle(particle *p, SDL_Color *c, int i)
 {
-    p->vision_field = PARTICLE_VISION;
+    int col = rand() % 3;
+    p->color.r = c[col].r;
+    p->color.g = c[col].g;
+    p->color.b = c[col].b;
+    p->color.a = c[col].a;
+    if(col == 0){
+        p->speed = PARTICLE_SPEED*2;
+        p->vision_field = PARTICLE_VISION/2;
+    }else if(col == 1){
+        p->vision_field = PARTICLE_VISION*2;
+        p->speed = PARTICLE_SPEED/2;
+    }else if(col == 2){
+        p->vision_field = PARTICLE_VISION;
+        p->speed = PARTICLE_SPEED;
+    }
     p->food = 0;
-    p->speed = PARTICLE_SPEED;
     p->angle = rand() * 2 * 3.1415 / RAND_MAX;
     p->destination_distance = rand() * fmin(fabs(p->y - HEIGHT), fabs(p->x - WIDTH)) / RAND_MAX;
     p->time_to_go = rand() % 60;
     p->x = WIDTH * 0.2 + rand() % WIDTH * 0.6;
     p->y = HEIGHT * 0.2 + rand() % HEIGHT * 0.6;
     p->size = PARTICLE_SIZE;
-    int col = 5; // rand() % NB_COLORS;
-    p->color.r = c[col].r;
-    p->color.g = c[col].g;
-    p->color.b = c[col].b;
-    p->color.a = c[col].a;
+    
     p->round = 0;
     p->alive = 1;
     if (i != -1)
@@ -540,13 +553,16 @@ int initialise_food(food *f, SDL_Color *c)
         f->y = HEIGHT * 0.11 + rand() % HEIGHT * 0.78;
     } while (rollover(f->x, f->y, HOUSE_X - 10, HOUSE_Y - 10, HOUSE_SIZE + 20, HOUSE_SIZE + 20));
     f->particle = -1;
-    f->color = c[0];
+    f->color = c[3];
     // f->size = FOOD_SIZE;
     return 1;
 }
 
 void create(particle *array_p)
 {
+    SDL_Color red = {255, 0, 0, 1};
+    SDL_Color green = {0, 255, 0, 1};
+    SDL_Color cyan = {0, 150, 200, 1};
     for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
     {
         if (array_p[i].alive <= 0)
@@ -555,9 +571,17 @@ void create(particle *array_p)
             array_p[i].x = HOUSE_X + HOUSE_SIZE / 2;
             array_p[i].y = HOUSE_Y + HOUSE_SIZE / 2;
             array_p[i].size = PARTICLE_SIZE;
-            array_p[i].vision_field = PARTICLE_VISION;
+            if(colorEq(array_p[i].color, red)){
+                array_p[i].speed = PARTICLE_SPEED*2;
+                array_p[i].vision_field = PARTICLE_VISION/2;
+            }else if(colorEq(array_p[i].color,  green)){
+                array_p[i].vision_field = PARTICLE_VISION*2;
+                array_p[i].speed = PARTICLE_SPEED/2;
+            }else if(colorEq(array_p[i].color,  cyan)){
+                array_p[i].vision_field = PARTICLE_VISION;
+                array_p[i].speed = PARTICLE_SPEED;
+            }
             array_p[i].food = -1;
-            array_p[i].speed = PARTICLE_SPEED;
             array_p[i].angle = 0;
             array_p[i].destination_distance = 0;
             array_p[i].time_to_go = 2;
@@ -566,8 +590,44 @@ void create(particle *array_p)
     }
 }
 
-void inherit_particle(particle *source, particle *target)
+int colorEq(SDL_Color a, SDL_Color b){
+    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
+void inherit_particle(particle *array_p, int index)
 {
+    SDL_Color red = {255, 0, 0, 1};
+    SDL_Color green = {0, 255, 0, 1};
+    SDL_Color cyan = {0, 150, 200, 1};
+    SDL_Color indexcol = {array_p[index].color.r, array_p[index].color.g, array_p[index].color.b, array_p[index].color.a};
+    for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
+    {
+        if (array_p[i].alive <= 0)
+        {
+            array_p[i].color = indexcol;
+            array_p[i].alive = 1;
+            array_p[i].x = HOUSE_X + HOUSE_SIZE / 2;
+            array_p[i].y = HOUSE_Y + HOUSE_SIZE / 2;
+            array_p[i].size = PARTICLE_SIZE;
+            if(colorEq(indexcol,red)){
+                array_p[i].speed = PARTICLE_SPEED*2;
+                array_p[i].vision_field = PARTICLE_VISION/2;
+            }else if(colorEq(indexcol, green)){
+                array_p[i].vision_field = PARTICLE_VISION*2;
+                array_p[i].speed = PARTICLE_SPEED/2;
+            }else if(colorEq(indexcol, cyan)){
+                array_p[i].vision_field = PARTICLE_VISION;
+                array_p[i].speed = PARTICLE_SPEED;
+            }
+            array_p[i].food = -1;
+            array_p[i].angle = 0;
+            array_p[i].destination_distance = 0;
+            array_p[i].time_to_go = 2;
+
+            return;
+        }
+    }
+
 }
 
 void copy_particle(particle *source, particle *target)
