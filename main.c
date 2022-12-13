@@ -197,14 +197,14 @@ int main()
                         alive++;
                     }
                 }
-                else if (rollover(evt.button.x, evt.button.y, WIDTH*0.015, HEIGHT*0.18, WIDTH*0.07, HEIGHT*0.07))//food add button
+                else if (rollover(evt.button.x, evt.button.y, WIDTH*0.015, HEIGHT*0.18, WIDTH*0.07, HEIGHT*0.07))//particle add button
                 {
-                    // find a food to add
-                    for (int i = 0; i < MAX_FOOD_NUMBER; i++)
-                        if (foods[i].size < 0)
+                    // find a particle to add
+                    for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
+                        if (part[i].alive < 0)
                         {
-                            foods[i].size = FOOD_SIZE;
-                            i = MAX_FOOD_NUMBER;
+                            part[i].alive = 1;
+                            i = MAX_PARTICLES_NUMBER;
                         }
                 }
                 else if (rollover(evt.button.x, evt.button.y, WIDTH * 0.015, HEIGHT * 0.27, WIDTH * 0.07, HEIGHT * 0.07))//vision button
@@ -481,7 +481,7 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
     color(r, 50, 50, 178, 0.5);
     roundRect(r, WIDTH * 0.015, HEIGHT * (0.18 + 0.01), WIDTH * 0.07, HEIGHT * 0.07, 1, 5, 5, 5, 5);
     text(r, WIDTH * 0.034, HEIGHT * (0.187 + 0.01), "add", f, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25);
-    text(r, WIDTH * 0.03, HEIGHT * (0.215 + 0.01), "food", f, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25);
+    text(r, WIDTH * 0.0155, HEIGHT * (0.215 + 0.01), "particle", f, transition * 200 + 25, transition * 200 + 25, transition * 200 + 25);
     // see vision_field button
     color(r, 50, 50, 178, 0.5);
     roundRect(r, WIDTH * 0.015, HEIGHT * (0.27 + 0.01), WIDTH * 0.07, HEIGHT * 0.07, 1, 5, 5, 5, 5);
