@@ -303,6 +303,9 @@ void draw_food(SDL_Renderer *r, food f)
 
 int update_particle(particle *p, double animation, int home, food *array_f, particle *array_p)
 {
+    SDL_Color red = {255, 0, 0, 1};
+    SDL_Color green = {0, 255, 0, 1};
+    SDL_Color cyan = {0, 150, 200, 1};
     if (p->alive < -DIED_TIME)
         return 0;
     else if (p->alive <= 0)
@@ -321,6 +324,15 @@ int update_particle(particle *p, double animation, int home, food *array_f, part
                 // printf("hop %d", p->id);
                 array_f[i].particle = p->id;
                 p->food += 1;
+            }
+        }
+        if(colorEq(p->color, green) && dist(HOUSE_X - HOUSE_SIZE/2, HOUSE_Y - HOUSE_SIZE/2, p->x, p->y) > HOUSE_SIZE*2){//search for a red particle to eat
+            for (int i = 0; i < MAX_PARTICLES_NUMBER; i++) {
+                if(array_p[i].alive > 0 && colorEq(array_p[i].color, red) && dist(p->x, p->y, array_p[i].x, array_p[i].y) < p->vision_field){
+                    array_p[i].alive = 0;
+                    p->food = 2;
+                    i = MAX_PARTICLES_NUMBER;
+                }
             }
         }
     }
