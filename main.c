@@ -446,18 +446,31 @@ void display_informations(SDL_Renderer *r, TTF_Font *f, particle *p, char *tmp, 
     roundRect(r, WIDTH * 0.05, HEIGHT * 0.01, WIDTH * 0.24, 10, 0, 5, 5, 5, 5);
 
     // alive bar
-    text(r, WIDTH * 0.004, HEIGHT * 0.04, "alive", f, 0, 255, 48);
+    text(r, WIDTH * 0.004, HEIGHT * 0.04, "alive", f, 255, 128, 0);
     // first let's count the number of alive particle
-    int alive = 0;
+    SDL_Color red = {255, 0, 0, 1};
+    SDL_Color green = {0, 255, 0, 1};
+    SDL_Color cyan = {0, 150, 200, 1};
+    int alive = 0, redp = 0, greenp = 0, cyanp = 0;
     for (int i = 0; i < MAX_PARTICLES_NUMBER; i++)
-        if (p[i].alive == 1)
-            alive++;
-    gcvt(alive, 4, tmp);
-    text(r, WIDTH * 0.26, HEIGHT * 0.042, tmp, f, 0, 255, 48);
-    // filling bar
-    color(r, 0, 255, 48, 1);
-    roundRect(r, WIDTH * 0.05, HEIGHT * 0.047, WIDTH * 0.2 * (alive / (float)MAX_PARTICLES_NUMBER), 10, 1, 5, 5, 5, 5);
-    // border
+        if (p[i].alive == 1 && colorEq(p[i].color, red))
+            redp++;
+        else if (p[i].alive == 1 && colorEq(p[i].color, green))
+            greenp++;
+        else if (p[i].alive == 1 && colorEq(p[i].color, cyan))
+            cyanp++;
+    gcvt(cyanp + redp + greenp, 4, tmp);
+    text(r, WIDTH * 0.26, HEIGHT * 0.042, tmp, f, 255, 128, 0);
+    //red filling bar
+    color(r, 255, 0, 0, 1);
+    roundRect(r, WIDTH * 0.05, HEIGHT * 0.047, WIDTH * 0.2 * (redp / (float)(cyanp + redp + greenp)), 10, 1, 2, 2, 2, 2);
+    //green filling bar
+    color(r, 0, 255, 0, 1);
+    roundRect(r, WIDTH * (0.05 + 0.2 * (redp / (float)(cyanp + redp + greenp))), HEIGHT * 0.047, WIDTH * 0.2 * (greenp / (float)(cyanp + redp + greenp)), 10, 1, 0, 2, 0, 2);
+    //cyan filling bar
+    color(r, 0, 150, 200, 1);
+    roundRect(r, WIDTH * (0.05 + 0.2 * (redp / (float)(cyanp + redp + greenp) + (greenp / (float)(cyanp + redp + greenp)))), HEIGHT * 0.047, WIDTH * 0.2 * (cyanp / (float)(cyanp + redp + greenp)), 10, 1, 0, 2, 0, 2);
+    //border
     color(r, (1 - transition) * 255, (1 - transition) * 255, (1 - transition) * 255, 1);
     roundRect(r, WIDTH * 0.05, HEIGHT * 0.047, WIDTH * 0.2, 10, 0, 5, 5, 5, 5);
     // FPS
