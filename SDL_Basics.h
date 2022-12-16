@@ -13,7 +13,7 @@ void line(SDL_Renderer* r, int x1, int y1, int x2, int y2);
 void color(SDL_Renderer* r, int red, int green, int blue, int alpha);
 void rect(SDL_Renderer* r, int x, int y, int width, int height, int filled);
 void circle(SDL_Renderer * r, int cx, int cy, int radius, int filled);
-void openSDL(int x, int y, int mode, SDL_Window**w, SDL_Renderer**r);
+void openSDL(int x, int y, int mode, const char * name, SDL_Window**w, SDL_Renderer**r);
 void closeSDL(SDL_Window**w, SDL_Renderer**r);
 void background(SDL_Renderer* r, int red, int green, int blue, int w, int h);
 int rollover(int mx, int my, int x, int y, int w, int h);

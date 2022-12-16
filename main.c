@@ -82,7 +82,7 @@ int main()
 
     SDL_Event evt;
     SDL_bool program_launched = SDL_TRUE;
-    openSDL(WIDTH, HEIGHT, 0, &w, &r);
+    openSDL(WIDTH, HEIGHT, 0, "ia", &w, &r);
 
     TTF_Font *param_font;
 

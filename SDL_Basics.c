@@ -64,15 +64,14 @@ void circle(SDL_Renderer * r, int cx, int cy, int radius, int filled){
 
 }
 
-void openSDL(int x, int y, int mode, SDL_Window**w, SDL_Renderer**r){
+void openSDL(int x, int y, int mode, const char * name, SDL_Window**w, SDL_Renderer**r){
 
-    if(0 != SDL_Init(/*flag*/ SDL_INIT_VIDEO))//lots of flags like SDL_INIT_AUDIO ; *_VIDEO ; *_EVERYTHING... To separe with '|'
+    if(0 != SDL_Init(/*flag*/ SDL_INIT_VIDEO | SDL_INIT_EVENTS))//lots of flags like SDL_INIT_AUDIO ; *_VIDEO ; *_EVERYTHING... To separe with '|'
         SDL_ExitWithError("Initialisation SDL failed");
     //at this point, the SDL is well initialised, we can afford it because of the if
 
-
-    if(SDL_CreateWindowAndRenderer(x, y, mode, w, r) !=0)
-        SDL_ExitWithError("window and render creation failed");
+    *w = SDL_CreateWindow(name, x, y, WIDTH, HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    *r = SDL_CreateRenderer(*w,-1, 1);
 
     if(TTF_Init() != 0)
         SDL_ExitWithError("TTF initialisation failed");
@@ -332,34 +331,13 @@ void text(SDL_Renderer*r, int x, int y, char*text, TTF_Font*font, int red, int g
 void toChar(char*c, int n){
     if(n < 0)
         n = 0;
-    if(n < 10){
-        c[0] = '0' + (char)(n%10);
-        c[1] = '\0';
-    }else if(n < 100){
-        c[0] = '0' + (char)(n/10);
-        c[1] = '0' + (char)(n%10);
-        c[2] = '\0';
-    }else if(n < 1000){
-        c[2] = '0' + (char)(n%10);
-        c[1] = '0' + (char)(n/10 % 10);
-        c[0] = '0' + (char)(n/100);
-        c[3] = '\0';
-    }else if(n < 10000){
-        c[3] = '0' + (char)(n%10);
-        c[2] = '0' + (char)(n/10 % 10);
-        c[1] = '0' + (char)(n/100 % 10);
-        c[0] = '0' + (char)(n/1000);
-        c[4] = '\0';
-    }else if(n < 100000){
-        c[5] = '\0';
-        c[4] = '0' + (char)(n%10);
-        c[3] = '0' + (char)(n/10 % 10);
-        c[2] = '0' + (char)(n/100 % 10);
-        c[1] = '0' + (char)(n/1000 % 10);
-        c[0] = '0' + (char)(n/10000);
-    }else{
-        fprintf(stderr, "toChar() function cannot deal with number > 99.999\n");
-    }
+
+    c[2] = '0' + (char)(n%10);
+    c[1] = '0' + (char)(n/10 % 10);
+    c[0] = '0' + (char)(n/100);
+
+
+    c[3] = '\0';
 
 }
 
